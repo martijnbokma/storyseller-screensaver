@@ -1,5 +1,7 @@
 name: Release
 
+# Trigger on version tags created by Gitflow release/hotfix finish operations
+# These tags are only created on main branch after successful releases
 on:
   push:
     tags:

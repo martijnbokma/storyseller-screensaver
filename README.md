@@ -206,12 +206,26 @@ Verifies screensaver installation and provides troubleshooting info.
 
 ## 🤝 Contributing
 
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
-3. **Make** your changes and test thoroughly
-4. **Commit** your changes: `git commit -m 'Add amazing feature'`
-5. **Push** to the branch: `git push origin feature/amazing-feature`
-6. **Open** a Pull Request
+We use **Gitflow** for our development workflow. See [GITFLOW.md](GITFLOW.md) for detailed instructions.
+
+### Quick Start for Contributors
+```bash
+# 1. Clone and setup
+git clone https://github.com/yourusername/storyseller-screensaver.git
+cd storyseller-screensaver
+./scripts/setup-dev.sh
+
+# 2. Start a feature
+./scripts/gitflow.sh feature start your-feature-name
+
+# 3. Develop and commit
+make build    # Test your changes
+git add .
+git commit -m "Add your feature"
+
+# 4. Finish feature
+./scripts/gitflow.sh feature finish your-feature-name
+```
 
 ### Development Guidelines
 - Test on multiple screen sizes (preview and full screen)
@@ -219,6 +233,7 @@ Verifies screensaver installation and provides troubleshooting info.
 - Ensure smooth 60fps performance
 - Follow Swift coding conventions
 - Add comments for complex animation logic
+- Use Gitflow workflow for all changes
 
 ## 🎨 Customization & Future Features
 

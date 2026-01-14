@@ -1,4 +1,4 @@
-.PHONY: help build preview clean install release release-auto release-smart release-patch release-minor release-major release-version release-beta release-rc release-dry-run lint format test ci
+.PHONY: help build preview clean install release release-auto release-smart release-patch release-minor release-major release-version release-beta release-rc release-dry-run gitflow-status gitflow-init gitflow-cleanup lint format test ci
 
 # Default target
 help: ## Show this help message
@@ -103,6 +103,16 @@ release-rc: ## Create release candidate (auto-generates: v1.0.1-rc.1, v1.0.1-rc.
 release-dry-run: ## Preview what an auto release would do
 	@echo "Dry run for auto release..."
 	@./scripts/create-release.sh --dry-run --auto
+
+# Gitflow targets
+gitflow-status: ## Show Gitflow branch status
+	@./scripts/gitflow.sh status
+
+gitflow-init: ## Initialize Gitflow branches
+	@./scripts/gitflow.sh init
+
+gitflow-cleanup: ## Remove merged Gitflow branches
+	@./scripts/gitflow.sh cleanup
 
 # CI/CD targets
 ci: ## Run full CI pipeline (build + lint)
