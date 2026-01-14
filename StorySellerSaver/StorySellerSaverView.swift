@@ -127,6 +127,8 @@ final class StorySellerSaverView: ScreenSaverView {
             x: centerX - storySize.width / 2,
             y: centerY - storySize.height / 2
         )
+        let storyBaselineY = storyOrigin.y + metrics.storyFont.ascender
+        let baselineOffset = storyBaselineY - centerY
         let glowCenter = CGPoint(x: centerX, y: centerY)
         let glow = NSGradient(colors: [
             NSColor.white.withAlphaComponent(0.07),
@@ -144,7 +146,7 @@ final class StorySellerSaverView: ScreenSaverView {
         // - Only 5 words are visible (2 above, 1 center, 2 below).
         // - As scrollOffset increases by lineHeight, the next word becomes centered.
         let ySign: CGFloat = isFlipped ? 1 : -1
-        for offset in -2...2 {
+        for offset in -3...3 {
             // Offsets are visual positions; index mapping keeps list order while moving downward.
             let wordIndex = (baseIndex - offset + words.count) % words.count
             // Negative offsets sit above the center line; move linearly downward.
@@ -153,17 +155,25 @@ final class StorySellerSaverView: ScreenSaverView {
             // Visual treatment: fade + slight size emphasis near center
             let dist = abs(wordCenterY - centerY)
             // Hard cull to avoid a third row peeking in below/above.
-            if dist > lineHeight * 2.05 {
+            // Extended so incoming words become visible earlier for a smoother loop.
+            let maxVisible = lineHeight * 2.8
+            if dist > maxVisible {
                 continue
             }
-            let norm = min(1.0, dist / (lineHeight * 2.0))
+            let norm = min(1.0, dist / (lineHeight * 2.8))
             let falloff = 1.0 - norm
-            let ease = pow(falloff, 3.1)
+            let ease = pow(falloff, 2.0)
+
+            // Fade-in/out at the edges so the first word appears smoothly.
+            let edgeInner = lineHeight * 1.8
+            let edgeOuter = maxVisible
+            let edgeT = max(0.0, min(1.0, (edgeOuter - dist) / (edgeOuter - edgeInner)))
+            let edgeFade = edgeT * edgeT * (3.0 - 2.0 * edgeT)
 
             // Keep center strong; outer rows are nearly ghosted.
-            let alpha = 0.03 + 0.97 * ease
+            let alpha = (0.02 + 0.98 * ease) * edgeFade
             let fontSize = metrics.wordBaseSize + metrics.wordBoost * ease
-            let wordFont = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
+            let wordFont = preferredFont(size: fontSize, weight: .bold)
 
             let shadow = NSShadow()
             shadow.shadowOffset = .zero
@@ -180,10 +190,12 @@ final class StorySellerSaverView: ScreenSaverView {
             let w = words[wordIndex]
             let wordSize = (w as NSString).size(withAttributes: wordAttrs)
 
-            // Align vertically with "the story" baseline by centering the rects.
+            // Align vertically with "the story" baseline using font metrics.
+            // Align the word baseline to the story baseline, preserving row position.
+            let wordBaselineY = wordCenterY + baselineOffset
             let wordOrigin = CGPoint(
                 x: wordRightX - wordSize.width,
-                y: wordCenterY - wordSize.height / 2
+                y: wordBaselineY - wordFont.ascender
             )
 
             (w as NSString).draw(at: wordOrigin, withAttributes: wordAttrs)
@@ -219,8 +231,8 @@ final class StorySellerSaverView: ScreenSaverView {
         // Slight emphasis at the center word.
         let boost = max(6, storySize * 0.18)
 
-        let storyFont = NSFont.systemFont(ofSize: storySize, weight: .regular)
-        let activeWordFont = NSFont.systemFont(ofSize: wordBase + boost, weight: .semibold)
+        let storyFont = preferredFont(size: storySize, weight: .regular)
+        let activeWordFont = preferredFont(size: wordBase + boost, weight: .semibold)
 
         // Line height: enough separation to feel like a carousel, not a list.
         let lineHeight = max(52, storySize * 1.16)
@@ -232,5 +244,26 @@ final class StorySellerSaverView: ScreenSaverView {
             wordBoost: boost,
             activeWordFont: activeWordFont
         )
+    }
+
+    private func preferredFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
+        let isBold = weight >= .semibold
+        let poppinsNames = isBold
+            ? ["Poppins-Bold", "Poppins-SemiBold", "Poppins"]
+            : ["Poppins-Regular", "Poppins"]
+
+        for name in poppinsNames {
+            if let font = NSFont(name: name, size: size) {
+                return font
+            }
+        }
+
+        if let avenir = NSFont(name: "Avenir Next", size: size) {
+            return avenir
+        }
+        if let helvetica = NSFont(name: "Helvetica Neue", size: size) {
+            return helvetica
+        }
+        return NSFont.systemFont(ofSize: size, weight: weight)
     }
 }
