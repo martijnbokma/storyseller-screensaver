@@ -1,4 +1,4 @@
-.PHONY: help build preview clean install release release-auto release-smart release-patch release-minor release-major release-version release-beta release-rc release-dry-run gitflow-status gitflow-init gitflow-cleanup lint format test ci
+.PHONY: help build preview clean install release release-auto release-smart release-patch release-minor release-major release-version release-beta release-rc release-beta-develop release-dry-run gitflow-status gitflow-init gitflow-cleanup lint format test ci
 
 # Default target
 help: ## Show this help message
@@ -99,6 +99,14 @@ release-beta: ## Create beta pre-release (auto-generates: v1.0.1-beta.1, v1.0.1-
 release-rc: ## Create release candidate (auto-generates: v1.0.1-rc.1, v1.0.1-rc.2, etc.)
 	@echo "Creating release candidate..."
 	@./scripts/create-release.sh --patch --rc
+
+release-beta-develop: ## Create beta release directly from develop branch
+	@echo "Creating beta release from develop branch..."
+	@if [ -z "$(VERSION)" ]; then \
+		./scripts/create-beta-release.sh; \
+	else \
+		./scripts/create-beta-release.sh $(VERSION); \
+	fi
 
 release-dry-run: ## Preview what an auto release would do
 	@echo "Dry run for auto release..."
