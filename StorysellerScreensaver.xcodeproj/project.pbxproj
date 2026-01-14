@@ -8,11 +8,13 @@
 
 /* Begin PBXBuildFile section */
 		91CC500E4E032EA61ADA4E85 /* ScreenSaver.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 64A172C70238E3A2FA010262 /* ScreenSaver.framework */; };
+		55FC902233C242CB93993703 /* Preview.png in Resources */ = {isa = PBXBuildFile; fileRef = 1754EC52D34A43CBAF89CB2C /* Preview.png */; };
 		F824DAD48CF6C573B9A2B29C /* StorySellerSaverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 226C7217F5996217D2CF9204 /* StorySellerSaverView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		226C7217F5996217D2CF9204 /* StorySellerSaverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorySellerSaverView.swift; sourceTree = "<group>"; };
+		1754EC52D34A43CBAF89CB2C /* Preview.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Preview.png; sourceTree = "<group>"; };
 		257D6B062F17A19B003B5632 /* StorySellerSaverInfo.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = StorySellerSaverInfo.plist; sourceTree = "<group>"; };
 		257D6B072F17A2C0003B5632 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		64A172C70238E3A2FA010262 /* ScreenSaver.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenSaver.framework; path = System/Library/Frameworks/ScreenSaver.framework; sourceTree = SDKROOT; };
@@ -63,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				226C7217F5996217D2CF9204 /* StorySellerSaverView.swift */,
+				1754EC52D34A43CBAF89CB2C /* Preview.png */,
 				96EF8524CD6632C2AE6AA5D2 /* Info.plist */,
 			);
 			path = StorySellerSaver;
@@ -127,6 +130,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				55FC902233C242CB93993703 /* Preview.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

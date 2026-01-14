@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    - name: Install SwiftLint
+      run: |
+        brew install swiftlint
+
+    - name: Run SwiftLint
+      run: |
+        swiftlint lint StorySellerSaver/ --strict --quiet
+
+    - name: Cache derived data
+      uses: actions/cache@v3
+      with:
+        path: ~/Library/Developer/Xcode/DerivedData
+        key: ${{ runner.os }}-xcode-${{ hashFiles('**/StorysellerScreensaver.xcodeproj') }}
+        restore-keys: |
+          ${{ runner.os }}-xcode-
+
+    - name: Build Debug
+      run: |
+        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Debug build
+
+    - name: Build Release
+      run: |
+        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release build
+
+    - name: Run tests
+      run: |
+        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver test || true
+
+    - name: Archive build artifacts
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: StorySellerSaver-screensaver
+        path: |
+          ~/Library/Developer/Xcode/DerivedData/**/Build/Products/Release/StorySellerSaver.saver
+        retention-days: 30

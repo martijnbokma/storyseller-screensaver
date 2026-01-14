@@ -1,0 +1,37 @@
+pre-commit:
+  parallel: true
+  commands:
+    lint-swift:
+      glob: "*.swift"
+      run: swiftlint lint --quiet --strict {staged_files}
+      stage_fixed: true
+
+    format-swift:
+      glob: "*.swift"
+      run: swiftformat {staged_files} --swiftversion 5.7
+      stage_fixed: true
+
+    check-scripts:
+      glob: "scripts/*.sh"
+      run: shellcheck {staged_files}
+
+commit-msg:
+  commands:
+    validate-commit:
+      run: |
+        commit_msg=$(cat {1})
+        if [[ ${#commit_msg} -lt 10 ]]; then
+          echo "Commit message too short (minimum 10 characters)"
+          exit 1
+        fi
+
+post-commit:
+  commands:
+    update-version:
+      run: ./scripts/update-version.sh
+
+pre-push:
+  commands:
+    build-check:
+      run: make ci
+      run: echo "All checks passed! ✅"

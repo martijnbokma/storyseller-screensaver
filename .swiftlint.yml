@@ -1,0 +1,31 @@
+# SwiftLint Configuration for StorySellerSaver
+
+disabled_rules:
+  - trailing_whitespace
+  - vertical_whitespace
+  - file_length
+  - function_body_length
+  - identifier_name
+  - type_body_length
+
+opt_in_rules:
+  - empty_count
+  - force_unwrapping
+  - missing_docs
+  - unused_import
+
+excluded:
+  - Carthage
+  - Pods
+  - build/
+  - DerivedData/
+
+cyclomatic_complexity:
+  warning: 10
+  error: 15
+
+type_name:
+  min_length: 2
+  max_length: 40
+
+reporter: "xcode"
