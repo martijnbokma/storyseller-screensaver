@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Create Beta Release from Develop Branch
-# This creates a beta tag directly from develop branch
+# Create Beta Release from Main Branch
+# This creates a beta tag directly from main branch and triggers GitHub Actions
 
 usage() {
     cat >&2 << 'USAGE'
 Usage: create-beta-release.sh [version]
 
-Create a beta release directly from develop branch.
+Create a beta release directly from main branch and trigger GitHub Actions.
 
 ARGUMENTS:
     version    Optional version (e.g., 1.1.0). If not provided, auto-generates.
@@ -18,27 +18,28 @@ EXAMPLES:
     ./scripts/create-beta-release.sh 1.1.0   # Specific version
 
 NOTES:
-    - Creates beta tag directly from develop branch
-    - Use with caution - ensure develop is stable
+    - Creates beta tag directly from main branch
+    - Pushes tag to GitHub to trigger Actions workflow
     - Beta releases are marked as pre-releases in GitHub
+    - Requires GitHub remote to be configured
 USAGE
 }
 
-# Check if we're on develop branch
-check_develop_branch() {
+# Check if we're on main branch
+check_main_branch() {
     local current_branch
     current_branch=$(git rev-parse --abbrev-ref HEAD)
-    if [[ "$current_branch" != "develop" ]]; then
-        log_error "Must be on develop branch. Current branch: $current_branch"
-        log_info "Run: git checkout develop"
+    if [[ "$current_branch" != "main" ]]; then
+        log_error "Must be on main branch. Current branch: $current_branch"
+        log_info "Run: git checkout main"
         exit 1
     fi
 }
 
-# Check if develop has uncommitted changes
-check_clean_develop() {
+# Check if main has uncommitted changes
+check_clean_main() {
     if [[ -n "$(git status --porcelain)" ]]; then
-        log_error "Develop branch has uncommitted changes"
+        log_error "Main branch has uncommitted changes"
         log_info "Commit or stash changes first"
         exit 1
     fi
@@ -87,30 +88,56 @@ main() {
         version=$1
     fi
 
-    check_develop_branch
-    check_clean_develop
+    check_main_branch
+    check_clean_main
+
+    # Check if remote is configured
+    if ! git remote get-url origin >/dev/null 2>&1; then
+        log_error "No GitHub remote configured!"
+        log_info "Please set up a GitHub repository first:"
+        log_info "1. Create a new repository on GitHub"
+        log_info "2. Run: git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git"
+        log_info "3. Run: git push -u origin main"
+        exit 1
+    fi
 
     local beta_version
     beta_version=$(generate_beta_version "$version")
 
     log_info "Creating beta release: v$beta_version"
 
-    # Create beta tag
-    git tag -a "v$beta_version" -m "Beta release $beta_version"
+    # Create beta tag with detailed message
+    git tag -a "v$beta_version" -m "Beta release $beta_version
 
-    # Push tag to trigger release
-    if git remote get-url origin >/dev/null 2>&1; then
-        log_info "Pushing beta tag to remote..."
-        git push origin "v$beta_version"
-        log_success "Beta release v$beta_version pushed to remote"
-        log_info "GitHub Actions will create the beta release automatically"
-    else
-        log_success "Beta tag v$beta_version created locally"
-        log_warning "No remote configured - tag not pushed"
-    fi
+🎠 StorySeller Screensaver Beta Release
 
-    log_success "Beta release v$beta_version ready!"
-    log_info "This will appear as a pre-release on GitHub"
+✨ Features:
+- Smooth carousel animation with vertical word transitions
+- Responsive typography that scales to screen size
+- Dynamic scaling and fade effects for words near center
+- Ultra-smooth 60fps animation with quintic easing
+
+🏷️ Logo Animation:
+- 'CREATIVE BUSINESS' logo in corners, rotates every 5 minutes
+- Smooth 8-second transitions between corners
+- Subtle styling (10% opacity, no background)
+
+⚠️ This is a pre-release version for testing purposes only.
+This version may contain bugs or incomplete features. Use at your own risk."
+
+    # Push tag to trigger GitHub Actions release
+    log_info "Pushing beta tag to GitHub..."
+    git push origin "v$beta_version"
+
+    log_success "Beta release v$beta_version pushed to GitHub!"
+    log_info "GitHub Actions will automatically:"
+    log_info "  - Build the screensaver in Release configuration"
+    log_info "  - Package it as StorySellerSaver-v${beta_version}.zip"
+    log_info "  - Create a GitHub release with the package"
+    log_info "  - Mark it as a pre-release"
+
+    log_success "Beta release v$beta_version is being processed by GitHub Actions!"
+    log_info "Check your repository's Actions tab for progress"
 }
 
 # Import logging functions from create-release.sh
