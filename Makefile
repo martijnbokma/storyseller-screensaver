@@ -1,4 +1,4 @@
-.PHONY: help build preview clean install release release-auto release-smart release-patch release-minor release-major release-version release-dry-run lint format test ci
+.PHONY: help build preview clean install release release-auto release-smart release-patch release-minor release-major release-version release-beta release-rc release-dry-run lint format test ci
 
 # Default target
 help: ## Show this help message
@@ -72,15 +72,15 @@ release-smart: ## Create a smart release based on commit message analysis
 	@echo "Creating smart release based on commits..."
 	@./scripts/create-release.sh --smart
 
-release-patch: ## Create a patch release (e.g., v1.0.0 -> v1.0.1)
+release-patch: ## Create a patch release (auto-increments: v1.0.0 -> v1.0.1)
 	@echo "Creating patch release..."
 	@./scripts/create-release.sh --patch
 
-release-minor: ## Create a minor release (e.g., v1.0.0 -> v1.1.0)
+release-minor: ## Create a minor release (auto-increments: v1.0.0 -> v1.1.0)
 	@echo "Creating minor release..."
 	@./scripts/create-release.sh --minor
 
-release-major: ## Create a major release (e.g., v1.0.0 -> v2.0.0)
+release-major: ## Create a major release (auto-increments: v1.0.0 -> v2.0.0)
 	@echo "Creating major release..."
 	@./scripts/create-release.sh --major
 
@@ -91,6 +91,14 @@ release-version: ## Create a specific version release (usage: make release-versi
 		exit 1; \
 	fi
 	@./scripts/create-release.sh --version $(VERSION)
+
+release-beta: ## Create beta pre-release (auto-generates: v1.0.1-beta.1, v1.0.1-beta.2, etc.)
+	@echo "Creating beta release..."
+	@./scripts/create-release.sh --patch --beta
+
+release-rc: ## Create release candidate (auto-generates: v1.0.1-rc.1, v1.0.1-rc.2, etc.)
+	@echo "Creating release candidate..."
+	@./scripts/create-release.sh --patch --rc
 
 release-dry-run: ## Preview what an auto release would do
 	@echo "Dry run for auto release..."

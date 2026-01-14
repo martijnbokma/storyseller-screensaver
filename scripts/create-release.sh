@@ -117,6 +117,27 @@ smart_version_bump() {
     increment_version "$current_version" "patch"
 }
 
+# Generate pre-release version with suffix
+generate_prerelease_version() {
+    local base_version=$1
+    local prerelease_type=$2
+
+    # Find the latest tag with this base version and prerelease type
+    local latest_prerelease
+    latest_prerelease=$(git tag -l "v${base_version}-${prerelease_type}.*" | sort -V | tail -1 || echo "")
+
+    if [[ -z "$latest_prerelease" ]]; then
+        # First prerelease for this version
+        echo "${base_version}-${prerelease_type}.1"
+    else
+        # Increment the prerelease number
+        local current_num
+        current_num=$(echo "$latest_prerelease" | sed -E "s/v${base_version}-${prerelease_type}\.([0-9]+)/\1/")
+        local next_num=$((current_num + 1))
+        echo "${base_version}-${prerelease_type}.${next_num}"
+    fi
+}
+
 # Increment version
 increment_version() {
     local version=$1
@@ -166,6 +187,7 @@ main() {
     local increment=""
     local auto_generate=false
     local smart_bump=false
+    local prerelease_type=""
     local dry_run=false
 
     # Parse arguments
@@ -195,6 +217,14 @@ main() {
                 smart_bump=true
                 shift
                 ;;
+            -b|--beta)
+                prerelease_type="beta"
+                shift
+                ;;
+            -r|--rc)
+                prerelease_type="rc"
+                shift
+                ;;
             -d|--dry-run)
                 dry_run=true
                 shift
@@ -212,36 +242,46 @@ main() {
     done
 
     # Determine version
+    local base_version=""
     if [[ -n "$version" ]]; then
         validate_version "$version"
-        log_info "Using specified version: v$version"
+        base_version="$version"
+        log_info "Using specified version: v$base_version"
     elif [[ "$auto_generate" == true ]]; then
         local current_version
         current_version=$(get_current_version)
         if [[ "$current_version" == "0.0.0" ]]; then
-            version="1.0.0"
-            log_info "No existing tags found, starting with v$version"
+            base_version="1.0.0"
+            log_info "No existing tags found, starting with v$base_version"
         else
-            version=$(increment_version "$current_version" "patch")
+            base_version=$(increment_version "$current_version" "patch")
             log_info "Current version: v$current_version"
-            log_info "Auto-generated version: v$version (patch increment)"
+            log_info "Auto-generated base version: v$base_version (patch increment)"
         fi
     elif [[ "$smart_bump" == true ]]; then
-        version=$(smart_version_bump)
+        base_version=$(smart_version_bump)
         local current_version
         current_version=$(get_current_version)
         log_info "Current version: v$current_version"
-        log_info "Smart-generated version: v$version (based on commit analysis)"
+        log_info "Smart-generated base version: v$base_version (based on commit analysis)"
     elif [[ -n "$increment" ]]; then
         local current_version
         current_version=$(get_current_version)
-        version=$(increment_version "$current_version" "$increment")
+        base_version=$(increment_version "$current_version" "$increment")
         log_info "Current version: v$current_version"
-        log_info "New version: v$version (incremented $increment)"
+        log_info "New base version: v$base_version (incremented $increment)"
     else
         log_error "Must specify either --version, --auto, --smart, or an increment option (--patch/--minor/--major)"
         usage
         exit 1
+    fi
+
+    # Apply pre-release suffix if requested
+    if [[ -n "$prerelease_type" ]]; then
+        version=$(generate_prerelease_version "$base_version" "$prerelease_type")
+        log_info "Generated pre-release version: v$version"
+    else
+        version="$base_version"
     fi
 
     local tag="v$version"

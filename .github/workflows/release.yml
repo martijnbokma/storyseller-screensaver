@@ -28,6 +28,15 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "Building StorySellerSaver v$VERSION"
 
+        # Check if this is a pre-release (contains -beta or -rc)
+        if [[ "$VERSION" == *"-beta"* ]] || [[ "$VERSION" == *"-rc"* ]]; then
+          echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+          echo "This is a pre-release version"
+        else
+          echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+          echo "This is a stable release version"
+        fi
+
     - name: Build screensaver
       run: |
         xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release build
@@ -52,8 +61,18 @@ jobs:
 
     - name: Generate release notes
       run: |
+        if [[ "${IS_PRERELEASE}" == "true" ]]; then
+          PRERELEASE_WARNING="⚠️  **This is a pre-release version for testing purposes only.**"
+          STABILITY_NOTE="This version may contain bugs or incomplete features. Use at your own risk."
+        else
+          PRERELEASE_WARNING=""
+          STABILITY_NOTE=""
+        fi
+
         cat > release_notes.md << EOF
         ## StorySellerSaver v${VERSION}
+
+        ${PRERELEASE_WARNING}
 
         ### ✨ What's New
         - Enhanced floating logo animation
@@ -78,6 +97,8 @@ jobs:
         - Accessibility support
         - Responsive typography
 
+        ${STABILITY_NOTE}
+
         ---
         Built with ❤️ for creative professionals
         EOF
@@ -91,7 +112,7 @@ jobs:
         release_name: StorySellerSaver v${{ env.VERSION }}
         body_path: release_notes.md
         draft: false
-        prerelease: false
+        prerelease: ${{ env.IS_PRERELEASE }}
 
     - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
