@@ -41,7 +41,7 @@ final class StorySellerSaverView: ScreenSaverView {
     /// Seconds each word stays centered before moving on.
     private let holdSecondsPerWord: CGFloat = 0.6
     /// Horizontal gap between the left word and the centered "the story".
-    private let wordGap: CGFloat = 18
+    private let wordGap: CGFloat = 8
 
     override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
@@ -112,7 +112,34 @@ final class StorySellerSaverView: ScreenSaverView {
     override func draw(_ rect: NSRect) {
         guard NSGraphicsContext.current != nil else { return }
 
-        let metrics = computeMetrics()
+        let metrics: Metrics
+        do {
+            metrics = computeMetrics()
+            // Debug: check if we have valid metrics
+            guard metrics.lineHeight > 0 else {
+                throw NSError(domain: "Screensaver", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid metrics"])
+            }
+        } catch {
+            // Fallback rendering for Release mode crashes
+            NSColor.black.setFill()
+            bounds.fill()
+            // Draw a simple text message
+            let fallbackText = "StorySeller"
+            let font = NSFont.systemFont(ofSize: 24, weight: .regular)
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: NSColor.white
+            ]
+            let textSize = (fallbackText as NSString).size(withAttributes: attrs)
+            let textRect = CGRect(
+                x: (bounds.width - textSize.width) / 2,
+                y: (bounds.height - textSize.height) / 2,
+                width: textSize.width,
+                height: textSize.height
+            )
+            (fallbackText as NSString).draw(in: textRect, withAttributes: attrs)
+            return
+        }
 
         // Background: subtle gradient + vignette
         let phase = (scrollOffset / max(metrics.lineHeight, 1)) * 0.2
@@ -273,7 +300,7 @@ final class StorySellerSaverView: ScreenSaverView {
         }
 
         // Scale typography to screen size but keep it tasteful in preview mode.
-        let minDim = min(bounds.width, bounds.height)
+        let minDim = max(100, min(bounds.width, bounds.height)) // Ensure minimum screen size
 
         // Base size tuned for typical screens; clamped so it doesn't explode.
         let base = max(34, min(72, minDim * 0.095))
@@ -337,7 +364,7 @@ final class StorySellerSaverView: ScreenSaverView {
     }
 
     private func updateLogoPosition(now: TimeInterval) {
-        let logoMoveInterval: TimeInterval = 300.0 // 5 minutes
+        let logoMoveInterval: TimeInterval = 30.0 // 30 seconds
         let logoMoveDuration: TimeInterval = 8.0 // 8 seconds to move between corners
 
         if now >= lastLogoMoveTime + logoMoveInterval {
@@ -401,23 +428,28 @@ final class StorySellerSaverView: ScreenSaverView {
     }
 
     private func preferredFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
+        // Ensure size is valid
+        let safeSize = max(1, size)
+
         let isBold = weight >= .semibold
         let poppinsNames = isBold
             ? ["Poppins-Bold", "Poppins-SemiBold", "Poppins"]
             : ["Poppins-Regular", "Poppins"]
 
         for name in poppinsNames {
-            if let font = NSFont(name: name, size: size) {
+            if let font = NSFont(name: name, size: safeSize), font.pointSize > 0 {
                 return font
             }
         }
 
-        if let avenir = NSFont(name: "Avenir Next", size: size) {
+        if let avenir = NSFont(name: "Avenir Next", size: safeSize), avenir.pointSize > 0 {
             return avenir
         }
-        if let helvetica = NSFont(name: "Helvetica Neue", size: size) {
+        if let helvetica = NSFont(name: "Helvetica Neue", size: safeSize), helvetica.pointSize > 0 {
             return helvetica
         }
-        return NSFont.systemFont(ofSize: size, weight: weight)
+
+        // Ultimate fallback - system font
+        return NSFont.systemFont(ofSize: safeSize, weight: weight)
     }
 }
