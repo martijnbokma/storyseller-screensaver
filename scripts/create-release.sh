@@ -17,6 +17,8 @@ OPTIONS:
     -M, --major             Increment major version (1.0.0 -> 2.0.0)
     -a, --auto              Auto-generate next version based on existing tags
     -s, --smart             Smart version bump based on commit messages
+    -b, --beta              Create beta pre-release (adds -beta.N suffix)
+    -r, --rc                Create release candidate (adds -rc.N suffix)
     -d, --dry-run           Show what would be done without doing it
     -h, --help              Show this help
 
@@ -26,6 +28,8 @@ EXAMPLES:
     ./scripts/create-release.sh --patch          # v1.0.0 -> v1.0.1
     ./scripts/create-release.sh --minor          # v1.0.0 -> v1.1.0
     ./scripts/create-release.sh -v 1.2.3         # Specific version
+    ./scripts/create-release.sh --patch --beta   # v1.0.0 -> v1.0.1-beta.1
+    ./scripts/create-release.sh -v 1.0.0 --rc   # v1.0.0-rc.1
     ./scripts/create-release.sh --dry-run --auto # Preview auto version
 USAGE
 }
