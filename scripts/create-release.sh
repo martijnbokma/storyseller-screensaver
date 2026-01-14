@@ -80,7 +80,7 @@ auto_generate_version() {
         esac
     fi
 
-    # For existing versions, use conventional logic
+    # For existing versions, increment the current version
     increment_version "$current_version" "$bump_type"
 }
 
@@ -131,8 +131,17 @@ generate_prerelease_version() {
         echo "${base_version}-${prerelease_type}.1"
     else
         # Increment the prerelease number
+        # Extract just the number after the prerelease type (e.g., "1" from "v1.0.0-beta.1")
         local current_num
-        current_num=$(echo "$latest_prerelease" | sed -E "s/v${base_version}-${prerelease_type}\.([0-9]+)/\1/")
+        current_num=$(echo "$latest_prerelease" | sed -E "s/.*-${prerelease_type}\.([0-9]+)$/\1/")
+
+        # Validate that we got a number
+        if ! [[ "$current_num" =~ ^[0-9]+$ ]]; then
+            log_error "Failed to extract prerelease number from tag: $latest_prerelease"
+            log_error "Expected format: v{major}.{minor}.{patch}-{type}.{number}"
+            exit 1
+        fi
+
         local next_num=$((current_num + 1))
         echo "${base_version}-${prerelease_type}.${next_num}"
     fi
@@ -143,7 +152,18 @@ increment_version() {
     local version=$1
     local part=$2
 
-    IFS='.' read -r major minor patch <<< "$version"
+    # Extract base version (remove any prerelease suffix)
+    local base_version
+    base_version=$(echo "$version" | sed 's/-.*//')
+
+    IFS='.' read -r major minor patch <<< "$base_version"
+
+    # Validate that we have numbers
+    if ! [[ "$major" =~ ^[0-9]+$ ]] || ! [[ "$minor" =~ ^[0-9]+$ ]] || ! [[ "$patch" =~ ^[0-9]+$ ]]; then
+        log_error "Invalid version format for increment: $version (base: $base_version)"
+        log_error "Expected format: major.minor.patch"
+        exit 1
+    fi
 
     case $part in
         major)
@@ -166,8 +186,11 @@ increment_version() {
 # Validate version format
 validate_version() {
     local version=$1
-    if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-        log_error "Invalid version format: $version (expected: x.y.z)"
+    # Allow both clean versions (x.y.z) and prerelease versions (x.y.z-beta.1)
+    if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
+        log_error "Invalid version format: $version"
+        log_error "Expected formats: x.y.z or x.y.z-prerelease.identifier"
+        log_error "Examples: 1.0.0, 1.0.0-beta.1, 1.0.0-rc.2"
         exit 1
     fi
 }
