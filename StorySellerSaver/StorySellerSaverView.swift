@@ -25,6 +25,15 @@ final class StorySellerSaverView: ScreenSaverView {
     private var cachedWordAttrsCache: [String: [NSAttributedString.Key: Any]] = [:]
     private var cachedBackgroundPhase: CGFloat?
 
+    // MARK: - Logo animation state
+
+    private var logoCornerIndex: Int = 0
+    private var lastLogoMoveTime: TimeInterval = 0
+    private var logoPosition: CGPoint = .zero
+    private var logoTargetPosition: CGPoint = .zero
+    private var logoMoveStartTime: TimeInterval = 0
+    private var logoAttrs: [NSAttributedString.Key: Any]?
+
     // MARK: - Tuning
 
     /// Seconds for the movement between words.
@@ -50,6 +59,7 @@ final class StorySellerSaverView: ScreenSaverView {
         super.startAnimation()
         lastTime = ProcessInfo.processInfo.systemUptime
         elapsedTime = 0
+        lastLogoMoveTime = ProcessInfo.processInfo.systemUptime
     }
 
     override func animateOneFrame() {
@@ -62,6 +72,7 @@ final class StorySellerSaverView: ScreenSaverView {
         // Periodic cache cleanup to prevent memory bloat
         if Int(now) % 60 == 0 { // Every minute
             cachedWordAttrsCache.removeAll(keepingCapacity: true)
+            logoAttrs = nil // Reset logo cache to pick up any bounds changes
         }
 
         // Compute metrics based on current bounds (handles preview/screen size changes).
@@ -91,6 +102,9 @@ final class StorySellerSaverView: ScreenSaverView {
         }
 
         scrollOffset = (CGFloat(wordIndex) + t) * metrics.lineHeight
+
+        // Update logo position every 5 minutes (300 seconds)
+        updateLogoPosition(now: now)
 
         setNeedsDisplay(bounds)
     }
@@ -231,6 +245,9 @@ final class StorySellerSaverView: ScreenSaverView {
             (w as NSString).draw(at: wordOrigin, withAttributes: wordAttrs)
         }
 
+        // Draw animated logo in corners
+        drawLogo()
+
         // Optional subtle center guide (disabled by default).
         // ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.05).cgColor)
         // ctx.setLineWidth(1)
@@ -284,6 +301,103 @@ final class StorySellerSaverView: ScreenSaverView {
         cachedMetrics = (bounds: bounds, metrics: metrics)
 
         return metrics
+    }
+
+    private func drawLogo() {
+        let logoText = "CREATIVE\nBUSINESS"
+        let fontSize: CGFloat = min(bounds.width, bounds.height) * 0.030 // Slightly smaller and more subtle
+        let logoFont = preferredFont(size: fontSize, weight: .bold)
+
+        // Cache logo attributes for performance
+        if logoAttrs == nil {
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.alignment = .center
+
+            logoAttrs = [
+                .font: logoFont,
+                .foregroundColor: NSColor.white.withAlphaComponent(0.10), // More subtle
+                .kern: 0.4,
+                .paragraphStyle: paragraphStyle
+            ]
+        }
+
+        guard let attrs = logoAttrs else { return }
+
+        // Calculate logo rectangle (no background, just text for subtle appearance)
+        let logoSize = calculateLogoSize()
+        let logoRect = CGRect(
+            x: logoPosition.x,
+            y: logoPosition.y,
+            width: logoSize.width,
+            height: logoSize.height
+        )
+
+        // Draw the logo text only - very subtle without background
+        (logoText as NSString).draw(in: logoRect, withAttributes: attrs)
+    }
+
+    private func updateLogoPosition(now: TimeInterval) {
+        let logoMoveInterval: TimeInterval = 300.0 // 5 minutes
+        let logoMoveDuration: TimeInterval = 8.0 // 8 seconds to move between corners
+
+        if now >= lastLogoMoveTime + logoMoveInterval {
+            // Move to next corner
+            logoCornerIndex = (logoCornerIndex + 1) % 4
+            lastLogoMoveTime = now
+
+            // Calculate new target position (more margin from edges for subtle placement)
+            let margin: CGFloat = 60.0
+            let logoSize = calculateLogoSize()
+
+            switch logoCornerIndex {
+            case 0: // Top-left
+                logoTargetPosition = CGPoint(x: margin, y: bounds.height - logoSize.height - margin)
+            case 1: // Top-right
+                logoTargetPosition = CGPoint(x: bounds.width - logoSize.width - margin, y: bounds.height - logoSize.height - margin)
+            case 2: // Bottom-right
+                logoTargetPosition = CGPoint(x: bounds.width - logoSize.width - margin, y: margin)
+            case 3: // Bottom-left
+                logoTargetPosition = CGPoint(x: margin, y: margin)
+            default:
+                break
+            }
+
+            logoMoveStartTime = now
+            if logoPosition == .zero {
+                logoPosition = logoTargetPosition // First time, no animation
+            }
+        }
+
+        // Smooth animation to target position
+        if logoPosition != logoTargetPosition {
+            let elapsed = now - logoMoveStartTime
+            let progress = min(1.0, elapsed / logoMoveDuration)
+
+            // Smooth easing
+            let easedProgress = progress < 0.5 ?
+                2.0 * progress * progress :
+                1.0 - pow(-2.0 * progress + 2.0, 2.0) / 2.0
+
+            logoPosition.x = logoPosition.x + (logoTargetPosition.x - logoPosition.x) * easedProgress
+            logoPosition.y = logoPosition.y + (logoTargetPosition.y - logoPosition.y) * easedProgress
+        }
+    }
+
+    private func calculateLogoSize() -> CGSize {
+        let logoText = "CREATIVE\nBUSINESS"
+        let fontSize: CGFloat = min(bounds.width, bounds.height) * 0.035
+        let logoFont = preferredFont(size: fontSize, weight: .bold)
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: logoFont,
+            .paragraphStyle: paragraphStyle
+        ]
+
+        let size = (logoText as NSString).size(withAttributes: attrs)
+        return CGSize(width: ceil(size.width) + 6, height: ceil(size.height) + 6)
     }
 
     private func preferredFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
