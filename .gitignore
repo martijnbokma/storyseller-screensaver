@@ -81,6 +81,10 @@ fastlane/test_output
 *.tmp
 *.temp
 
+# Certificates / signing keys (do not commit)
+*.p12
+tmp/
+
 # Logs
 *.log
 
