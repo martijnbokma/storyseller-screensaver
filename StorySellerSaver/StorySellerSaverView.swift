@@ -75,6 +75,9 @@ final class StorySellerSaverView: ScreenSaverView {
             logoAttrs = nil // Reset logo cache to pick up any bounds changes
         }
 
+        // Force logo cache reset to show immediate changes
+        logoAttrs = nil
+
         // Compute metrics based on current bounds (handles preview/screen size changes).
         let metrics = computeMetrics()
         let cycleHeight = metrics.lineHeight * CGFloat(words.count)
@@ -339,10 +342,11 @@ final class StorySellerSaverView: ScreenSaverView {
         if logoAttrs == nil {
             let paragraphStyle = NSMutableParagraphStyle()
             paragraphStyle.alignment = .center
+            paragraphStyle.lineSpacing = -8.0 // Negative spacing brings lines closer together
 
             logoAttrs = [
                 .font: logoFont,
-                .foregroundColor: NSColor.white.withAlphaComponent(0.10), // More subtle
+                .foregroundColor: NSColor.white.withAlphaComponent(0.25), // More visible for testing
                 .kern: 0.4,
                 .paragraphStyle: paragraphStyle
             ]
@@ -364,39 +368,22 @@ final class StorySellerSaverView: ScreenSaverView {
     }
 
     private func updateLogoPosition(now: TimeInterval) {
-        let logoMoveInterval: TimeInterval = 30.0 // 30 seconds
-        let logoMoveDuration: TimeInterval = 8.0 // 8 seconds to move between corners
+        // Logo stays in top-right corner
+        let margin: CGFloat = 60.0
+        let logoSize = calculateLogoSize()
+        let targetPosition = CGPoint(x: bounds.width - logoSize.width - margin, y: bounds.height - logoSize.height - margin)
 
-        if now >= lastLogoMoveTime + logoMoveInterval {
-            // Move to next corner
-            logoCornerIndex = (logoCornerIndex + 1) % 4
-            lastLogoMoveTime = now
-
-            // Calculate new target position (more margin from edges for subtle placement)
-            let margin: CGFloat = 60.0
-            let logoSize = calculateLogoSize()
-
-            switch logoCornerIndex {
-            case 0: // Top-left
-                logoTargetPosition = CGPoint(x: margin, y: bounds.height - logoSize.height - margin)
-            case 1: // Top-right
-                logoTargetPosition = CGPoint(x: bounds.width - logoSize.width - margin, y: bounds.height - logoSize.height - margin)
-            case 2: // Bottom-right
-                logoTargetPosition = CGPoint(x: bounds.width - logoSize.width - margin, y: margin)
-            case 3: // Bottom-left
-                logoTargetPosition = CGPoint(x: margin, y: margin)
-            default:
-                break
-            }
-
-            logoMoveStartTime = now
-            if logoPosition == .zero {
-                logoPosition = logoTargetPosition // First time, no animation
-            }
+        // Set initial position if not set
+        if logoPosition == .zero {
+            logoPosition = targetPosition
         }
 
-        // Smooth animation to target position
+        // Update target position in case bounds changed
+        logoTargetPosition = targetPosition
+
+        // Smooth animation to target position (only when bounds change)
         if logoPosition != logoTargetPosition {
+            let logoMoveDuration: TimeInterval = 2.0 // 2 seconds for smooth repositioning
             let elapsed = now - logoMoveStartTime
             let progress = min(1.0, elapsed / logoMoveDuration)
 
@@ -417,6 +404,7 @@ final class StorySellerSaverView: ScreenSaverView {
 
         let paragraphStyle = NSMutableParagraphStyle()
         paragraphStyle.alignment = .center
+        paragraphStyle.lineSpacing = -8.0 // Negative spacing brings lines closer together
 
         let attrs: [NSAttributedString.Key: Any] = [
             .font: logoFont,

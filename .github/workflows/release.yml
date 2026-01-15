@@ -53,6 +53,38 @@ jobs:
         echo "SAVER_PATH=$SAVER_PATH" >> $GITHUB_ENV
         echo "Found screensaver at: $SAVER_PATH"
 
+    - name: Import signing certificate
+      uses: apple-actions/import-codesign-certs@v2
+      with:
+        p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+        p12-password: ${{ secrets.MACOS_CERTIFICATE_P12_PASSWORD }}
+
+    - name: Sign screensaver bundle
+      env:
+        SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+      run: |
+        if [ -z "$SIGNING_IDENTITY" ]; then
+          echo "Error: MACOS_SIGNING_IDENTITY secret is not set"
+          exit 1
+        fi
+        /usr/bin/codesign --force --options runtime --timestamp --sign "$SIGNING_IDENTITY" "$SAVER_PATH"
+        /usr/bin/codesign --verify --deep --strict "$SAVER_PATH"
+
+    - name: Notarize screensaver bundle
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: |
+        if [ -z "$APPLE_ID" ] || [ -z "$APPLE_ID_PASSWORD" ] || [ -z "$APPLE_TEAM_ID" ]; then
+          echo "Error: Apple notarization secrets are not set"
+          exit 1
+        fi
+        NOTARY_ZIP="StorySellerSaver-notary.zip"
+        /usr/bin/ditto -c -k --sequesterRsrc --keepParent "$SAVER_PATH" "$NOTARY_ZIP"
+        xcrun notarytool submit "$NOTARY_ZIP" --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_ID_PASSWORD" --wait
+        xcrun stapler staple "$SAVER_PATH"
+
     - name: Package screensaver
       run: |
         cd "$(dirname "$SAVER_PATH")"
