@@ -55,6 +55,18 @@ Na een paar minuten verschijnt er automatisch een nieuwe release op GitHub met:
 - ✅ Pre-release markering
 - ✅ Download link voor testers
 
+### 🧩 Installatie (voor testers)
+
+1. Download het zip-bestand uit de GitHub Release
+2. Pak het zip-bestand uit
+3. Dubbelklik `StorySellerSaver.saver` om te installeren
+4. Open System Settings → Screen Saver
+5. Als macOS de screensaver blokkeert, voer dit uit:
+
+```bash
+xattr -dr com.apple.quarantine ~/Library/Screen\ Savers/StorySellerSaver.saver
+```
+
 ### 🐛 Troubleshooting
 
 **"No GitHub remote configured!"**
