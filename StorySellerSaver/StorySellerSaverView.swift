@@ -16,6 +16,12 @@ final class StorySellerSaverView: ScreenSaverView {
     /// Words within this distance have full opacity.
     private static let edgeFadeInnerMultiplier: CGFloat = 1.8
 
+    /// Logo size scaling factor relative to minimum screen dimension.
+    private static let logoSizeScale: CGFloat = 0.025
+
+    /// Logo vertical spacing below carousel as multiplier of line height.
+    private static let logoSpacingMultiplier: CGFloat = 1.5
+
     /// Cache cleanup interval in seconds.
     private static let cacheCleanupInterval: Int = 60
 
@@ -52,6 +58,7 @@ final class StorySellerSaverView: ScreenSaverView {
     private var cachedMetrics: (bounds: NSRect, metrics: Metrics)?
     private var cachedStoryAttrs: [NSAttributedString.Key: Any]?
     private var cachedWordAttrsCache: [String: [NSAttributedString.Key: Any]] = [:]
+    private var cachedLogoAttrs: [NSAttributedString.Key: Any]?
 
     // MARK: - Tuning
 
@@ -60,7 +67,10 @@ final class StorySellerSaverView: ScreenSaverView {
     /// Seconds each word stays centered before moving on.
     private let holdSecondsPerWord: CGFloat = 0.6
     /// Horizontal gap between the left word and the centered "the story".
-    private let wordGap: CGFloat = 8
+    private let wordGap: CGFloat = 16
+    
+    /// Vertical offset to move the carousel slightly higher.
+    private let carouselVerticalOffset: CGFloat = -25.0
 
     override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
@@ -97,6 +107,7 @@ final class StorySellerSaverView: ScreenSaverView {
         // Periodic cache cleanup to prevent memory bloat
         if Int(now) % Self.cacheCleanupInterval == 0 {
             cachedWordAttrsCache.removeAll(keepingCapacity: true)
+            cachedLogoAttrs = nil // Reset logo cache to pick up any bounds changes
             os_log("Cache cleanup performed", log: Self.logger, type: .debug)
         }
 
@@ -189,7 +200,7 @@ final class StorySellerSaverView: ScreenSaverView {
         vignette?.draw(in: bounds, relativeCenterPosition: .zero)
 
         let centerX = bounds.midX
-        let centerY = bounds.midY
+        let screenCenterY = bounds.midY
 
         // Attributes for the fixed center text (SF Pro Display look)
         // Cache story attributes for better performance
@@ -206,6 +217,53 @@ final class StorySellerSaverView: ScreenSaverView {
         }
 
         let storySize = (centerText as NSString).size(withAttributes: storyAttrs)
+        
+        // Soft glow behind the phrase
+        // Calculate space width for proper spacing between words and "the story"
+        // Using combination of font-based calculation and fixed pixel value for better visibility
+        let fontBasedSpace = metrics.storyFont.pointSize * 1.3 // Space character width (slightly increased)
+        let fixedSpace: CGFloat = 25 // Fixed pixel offset for consistent spacing (slightly increased)
+        let spaceWidth = fontBasedSpace + fixedSpace // Combined approach for maximum visibility
+        
+        // Position "the story" first to determine its baseline
+        let storyVerticalOffset: CGFloat = 8.0 // Move "the story" down to align with carousel baseline
+        let storyOrigin = CGPoint(
+            x: centerX - storySize.width / 2 + spaceWidth,
+            y: screenCenterY - storySize.height / 2 + storyVerticalOffset
+        )
+        let storyBaselineY = storyOrigin.y + metrics.storyFont.ascender
+        
+        // Calculate carousel centerY so the centered word's baseline aligns with "the story" baseline
+        // More precise baseline calculation using actual font metrics
+        
+        // Get the font for the centered word (maximum size: wordBaseSize + wordBoost)
+        let centeredWordFont = preferredFont(size: metrics.wordBaseSize + metrics.wordBoost, weight: .bold)
+        
+        // Font metrics explanation:
+        // - ascender: distance from baseline to top of font
+        // - descender: distance from baseline to bottom of font (usually negative)
+        // - When drawing text at origin (x, y), the baseline is at: y + font.ascender
+        // - The font's vertical center relative to baseline is: (ascender + abs(descender)) / 2
+        
+        // For the centered word (offset = 0):
+        // - We want: wordBaselineY = storyBaselineY
+        // - wordBaselineY = wordOrigin.y + centeredWordFont.ascender
+        // - wordOrigin.y = wordBaselineY - wordBaselineY - centeredWordFont.ascender
+        // - wordCenterY = wordOrigin.y + fontCenterOffset
+        //   where fontCenterOffset = (centeredWordFont.ascender + abs(centeredWordFont.descender)) / 2
+        // - So: wordCenterY = storyBaselineY - centeredWordFont.ascender + fontCenterOffset
+        // - Simplifying: wordCenterY = storyBaselineY - (centeredWordFont.ascender - fontCenterOffset)
+        // - Since fontCenterOffset = (ascender + abs(descender)) / 2
+        // - wordCenterY = storyBaselineY - (ascender - (ascender + abs(descender)) / 2)
+        // - wordCenterY = storyBaselineY - (ascender - abs(descender)) / 2
+        
+        let fontCenterOffset = (centeredWordFont.ascender + abs(centeredWordFont.descender)) / 2
+        let centeredWordBaselineOffset = centeredWordFont.ascender - fontCenterOffset
+        
+        // Calculate centerY so that the centered word's baseline aligns with storyBaselineY
+        // centerY + centeredWordBaselineOffset = storyBaselineY
+        let centerY = storyBaselineY - centeredWordBaselineOffset
+        let baselineOffset = centeredWordBaselineOffset
 
         // Word carousel geometry
         let lineHeight = metrics.lineHeight
@@ -216,17 +274,7 @@ final class StorySellerSaverView: ScreenSaverView {
         let baseIndex = Int(floor(progress)) % words.count
         let t = progress - floor(progress)
 
-        // Soft glow behind the phrase
-        // Calculate space width for proper spacing between words and "the story"
-        // Using font-based calculation for approximately one space character width
-        let spaceWidth = metrics.storyFont.pointSize * 0.8 // Space character width for better visual separation
-        let storyOrigin = CGPoint(
-            x: centerX - storySize.width / 2 + spaceWidth,
-            y: centerY - storySize.height / 2
-        )
-        let storyBaselineY = storyOrigin.y + metrics.storyFont.ascender
-        let baselineOffset = storyBaselineY - centerY
-        let glowCenter = CGPoint(x: centerX, y: centerY)
+        let glowCenter = CGPoint(x: centerX, y: screenCenterY)
         let glow = NSGradient(colors: [
             NSColor.white.withAlphaComponent(0.07),
             NSColor.white.withAlphaComponent(0.0)
@@ -310,6 +358,9 @@ final class StorySellerSaverView: ScreenSaverView {
             (w as NSString).draw(at: wordOrigin, withAttributes: wordAttrs)
         }
 
+        // Draw "CREATIVE BUSINESS" logo below the carousel
+        drawLogo(metrics: metrics, centerY: screenCenterY, lineHeight: lineHeight)
+
         // Optional subtle center guide (disabled by default).
         // ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.05).cgColor)
         // ctx.setLineWidth(1)
@@ -363,6 +414,38 @@ final class StorySellerSaverView: ScreenSaverView {
         cachedMetrics = (bounds: bounds, metrics: metrics)
 
         return metrics
+    }
+
+    private func drawLogo(metrics: Metrics, centerY: CGFloat, lineHeight: CGFloat) {
+        let logoText = "CREATIVE BUSINESS"
+        let fontSize: CGFloat = min(bounds.width, bounds.height) * Self.logoSizeScale
+        let logoFont = preferredFont(size: fontSize, weight: .bold)
+
+        // Cache logo attributes for performance
+        if cachedLogoAttrs == nil {
+            cachedLogoAttrs = [
+                .font: logoFont,
+                .foregroundColor: NSColor.white.withAlphaComponent(0.3),
+                .kern: 1.2
+            ]
+        }
+
+        guard let attrs = cachedLogoAttrs else { return }
+
+        let logoSize = (logoText as NSString).size(withAttributes: attrs)
+        let centerX = bounds.midX
+        
+        // Position logo below the carousel
+        // Calculate bottom of carousel (lowest visible word position)
+        let carouselBottom = centerY - (lineHeight * Self.wordVisibilityMultiplier)
+        let logoY = carouselBottom - logoSize.height - (lineHeight * Self.logoSpacingMultiplier)
+        
+        let logoOrigin = CGPoint(
+            x: centerX - logoSize.width / 2,
+            y: logoY
+        )
+
+        (logoText as NSString).draw(at: logoOrigin, withAttributes: attrs)
     }
 
     private func preferredFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {

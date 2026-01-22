@@ -10,12 +10,14 @@ help: ## Show this help message
 # Development targets
 build: ## Build the screensaver in debug mode
 	@echo "Building StorySellerSaver (Debug)..."
-	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Debug -destination 'platform=macOS' build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
+	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Debug -destination 'platform=macOS' build 2>&1 | \
+		grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$$|^Recovery Suggestion:.*Xcode|^--$$|AppIntents\.framework|Metadata extraction skipped|appintentsmetadataprocessor|Starting appintentsmetadataprocessor)" || true
 	@$(MAKE) copy-to-build CONFIG=Debug
 
 build-release: ## Build the screensaver in release mode
 	@echo "Building StorySellerSaver (Release)..."
-	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release -destination 'platform=macOS' build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
+	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release -destination 'platform=macOS' build 2>&1 | \
+		grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$$|^Recovery Suggestion:.*Xcode|^--$$|AppIntents\.framework|Metadata extraction skipped|appintentsmetadataprocessor|Starting appintentsmetadataprocessor)" || true
 	@$(MAKE) copy-to-build CONFIG=Release
 
 copy-to-build: ## Copy built screensaver to project build folder
@@ -53,7 +55,8 @@ install-release: ## Install screensaver for testing (release mode)
 # Maintenance targets
 clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
-	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver clean 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
+	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver clean 2>&1 | \
+		grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$$|^Recovery Suggestion:.*Xcode|^--$$|AppIntents\.framework|Metadata extraction skipped|appintentsmetadataprocessor|Starting appintentsmetadataprocessor)" || true
 	@rm -rf ~/Library/Developer/Xcode/DerivedData/StorysellerScreensaver-*
 	@rm -rf build/*.saver
 
