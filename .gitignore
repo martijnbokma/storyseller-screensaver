@@ -26,7 +26,7 @@ Temporary Items
 
 # Xcode
 # Xcode build artifacts
-build/
+# Note: build/ folder is visible but contents (*.saver) are ignored
 DerivedData/
 
 # Xcode user data

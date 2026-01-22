@@ -89,11 +89,14 @@ Then try installing again.
 
 ### Fonts Not Displaying Correctly
 
-The screensaver uses system fonts and falls back gracefully:
-- **Primary**: Poppins (if available)
-- **Fallback**: Avenir Next → Helvetica Neue → System Font
+The screensaver uses custom fonts and falls back gracefully:
+- **Primary**: Cera Pro (if available or bundled)
+- **Fallback**: Poppins → Avenir Next → Helvetica Neue → System Font
 
-If you notice font issues, ensure your system fonts are up to date.
+If you notice font issues:
+- Ensure Cera Pro is installed (or bundled with the screensaver)
+- See [Font Bundling Guide](../docs/FONT_BUNDLING.md) for details on bundling fonts
+- The screensaver will automatically use fallback fonts if Cera Pro is not available
 
 ## 🎨 What You'll See
 

@@ -14,7 +14,7 @@ A sophisticated macOS screensaver that displays an elegant word carousel forming
 - **Accessibility Support**: Automatically reduces motion for users who prefer reduced motion
 - **Responsive Design**: Typography scales dynamically based on screen size
 - **Performance Optimized**: Uses background caching and efficient rendering
-- **Clean Typography**: Custom font stack (Poppins → Avenir → Helvetica → System) with proper kerning and spacing
+- **Clean Typography**: Custom font stack (Cera Pro → Poppins → Avenir → Helvetica → System) with proper kerning and spacing
 - **Subtle Visual Effects**: Gradient backgrounds, soft glows, and depth through shadows
 - **Floating Logo**: "CREATIVE BUSINESS" text that gracefully moves around the screen every 5 minutes
 - **Breathing Glow Effect**: Subtle pulsing glow that creates depth and visual interest
@@ -50,7 +50,7 @@ Perfect for creative professionals, agencies, and anyone who wants an elegant, n
 
 ## 🔧 Requirements
 
-- **macOS 10.15+** (Catalina or later)
+- **macOS 12.0+** (Monterey or later)
 - **Xcode 14.0+** (for development)
 - **Swift 5.7+**
 
@@ -186,7 +186,8 @@ Verifies screensaver installation and provides troubleshooting info.
 - **Accessibility**: Respects `accessibilityDisplayShouldReduceMotion`
 
 ### Typography
-- **Font Stack**: Poppins → Avenir Next → Helvetica Neue → System Font
+- **Font Stack**: Cera Pro → Poppins → Avenir Next → Helvetica Neue → System Font
+- **Primary Font**: Cera Pro (requires installation or bundling - see [Font Bundling Guide](docs/FONT_BUNDLING.md))
 - **Scaling**: Responsive sizing based on screen dimensions
 - **Kerning**: Proper letter spacing (-0.2 for center text, -0.15 for words)
 - **Alignment**: Baseline-aligned text positioning for visual harmony
@@ -258,7 +259,7 @@ Have suggestions for customization? We'd love to hear them! Open an [issue](../.
 
 - **Latest Release**: [Download here](../../releases/latest)
 - **Development Builds**: Available via GitHub Actions artifacts
-- **System Requirements**: macOS 10.15+
+- **System Requirements**: macOS 12.0+ (Monterey or later)
 
 ## 🐛 Reporting Issues
 

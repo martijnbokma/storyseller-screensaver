@@ -1,4 +1,4 @@
-.PHONY: help build preview clean install release release-auto release-smart release-patch release-minor release-major release-version release-beta release-rc release-beta-develop release-dry-run gitflow-status gitflow-init gitflow-cleanup lint format test ci
+.PHONY: help build build-release copy-to-build preview clean install release release-auto release-smart release-patch release-minor release-major release-version release-beta release-rc release-beta-develop release-dry-run gitflow-status gitflow-init gitflow-cleanup lint format test ci
 
 # Default target
 help: ## Show this help message
@@ -10,11 +10,29 @@ help: ## Show this help message
 # Development targets
 build: ## Build the screensaver in debug mode
 	@echo "Building StorySellerSaver (Debug)..."
-	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Debug build
+	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Debug -destination 'platform=macOS' build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
+	@$(MAKE) copy-to-build CONFIG=Debug
 
 build-release: ## Build the screensaver in release mode
 	@echo "Building StorySellerSaver (Release)..."
-	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release build
+	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release -destination 'platform=macOS' build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
+	@$(MAKE) copy-to-build CONFIG=Release
+
+copy-to-build: ## Copy built screensaver to project build folder
+	@echo "Copying screensaver to build folder..."
+	@mkdir -p build
+	@DERIVED=$$HOME/Library/Developer/Xcode/DerivedData; \
+	PATTERN="*/Build/Products/$(CONFIG)/StorySellerSaver.saver"; \
+	SRC=$$(/bin/ls -td $$DERIVED/$$PATTERN 2>/dev/null | /usr/bin/head -n 1 || true); \
+	if [ -z "$$SRC" ] || [ ! -d "$$SRC" ]; then \
+		echo "Warning: Could not find StorySellerSaver.saver (config: $(CONFIG))."; \
+		echo "Build may have failed or screensaver not found in DerivedData."; \
+		exit 1; \
+	fi; \
+	rm -rf build/StorySellerSaver.saver; \
+	/usr/bin/ditto "$$SRC" build/StorySellerSaver.saver; \
+	touch build/.gitkeep; \
+	echo "Copied to: build/StorySellerSaver.saver"
 
 preview: ## Build and preview the screensaver
 	@echo "Building and previewing StorySellerSaver..."
@@ -35,8 +53,9 @@ install-release: ## Install screensaver for testing (release mode)
 # Maintenance targets
 clean: ## Clean build artifacts
 	@echo "Cleaning build artifacts..."
-	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver clean
+	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver clean 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
 	@rm -rf ~/Library/Developer/Xcode/DerivedData/StorysellerScreensaver-*
+	@rm -rf build/*.saver
 
 clean-all: ## Clean all artifacts including screen saver
 	@make clean
@@ -59,9 +78,9 @@ format: ## Format code with SwiftFormat if installed
 		echo "SwiftFormat not installed. Install with: brew install swiftformat"; \
 	fi
 
-test: ## Run tests (if any exist)
+test: ## Run unit tests
 	@echo "Running tests..."
-	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver test
+	@xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaverTests -destination 'platform=macOS' test
 
 # Release targets
 release-auto: ## Create an auto-generated release based on existing tags

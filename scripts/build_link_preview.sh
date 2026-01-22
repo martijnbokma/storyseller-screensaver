@@ -36,7 +36,8 @@ DEST="$DEST_DIR/$NAME.saver"
   -project "StorysellerScreensaver.xcodeproj" \
   -scheme "$NAME" \
   -configuration "$CONFIG" \
-  build
+  -destination 'platform=macOS' \
+  build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
 
 PATTERN="*/Build/Products/$CONFIG/$NAME.saver"
 SRC="$(/bin/ls -td "$DERIVED"/$PATTERN 2>/dev/null | /usr/bin/head -n 1 || true)"

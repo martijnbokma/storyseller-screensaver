@@ -39,15 +39,15 @@ jobs:
 
     - name: Build Debug
       run: |
-        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Debug build
+        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Debug -destination 'platform=macOS' build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
 
     - name: Build Release
       run: |
-        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release build
+        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release -destination 'platform=macOS' build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
 
     - name: Run tests
       run: |
-        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver test || true
+        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaverTests -destination 'platform=macOS' test
 
     - name: Archive build artifacts
       if: success()

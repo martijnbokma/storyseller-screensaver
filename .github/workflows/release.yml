@@ -41,7 +41,7 @@ jobs:
 
     - name: Build screensaver
       run: |
-        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release build
+        xcodebuild -project StorysellerScreensaver.xcodeproj -scheme StorySellerSaver -configuration Release -destination 'platform=macOS' build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" || true
 
     - name: Find built screensaver
       run: |

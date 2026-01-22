@@ -1,10 +1,10 @@
 # Gitflow Workflow Guide
 
-Deze gids legt uit hoe we Gitflow gebruiken voor de StorySellerSaver development workflow.
+This guide explains how we use Gitflow for the StorySellerSaver development workflow.
 
-## 🎯 Gitflow Overzicht
+## Overview
 
-Gitflow is een branching model dat helpt bij het organiseren van development, releases en hotfixes. Het gebruikt verschillende branches voor verschillende doeleinden.
+Gitflow is a branching model that helps organize development, releases and hotfixes. It uses different branches for different purposes.
 
 ```
 main (production) ──┬── hotfix/1.0.1 ───┬── tag:v1.0.1
@@ -18,139 +18,139 @@ develop ──────────┬── feature/user-prefs ──┬─ 
                   └─ feature/dark-mode ───┘
 ```
 
-## 🌿 Branch Structuur
+## Branch Structure
 
-### Permanente Branches
-- **`main`** - Productie releases (alleen merges, geen direct commits)
-- **`develop`** - Integratie branch voor features
+### Permanent Branches
+- **`main`** - Production releases (only merges, no direct commits)
+- **`develop`** - Integration branch for features
 
-### Temporaire Branches
-- **`feature/*`** - Nieuwe features
-- **`release/*`** - Release voorbereiding
-- **`hotfix/*`** - Dringende productie fixes
+### Temporary Branches
+- **`feature/*`** - New features
+- **`release/*`** - Release preparation
+- **`hotfix/*`** - Urgent production fixes
 
-## 🚀 Workflow voor Features
+## Feature Workflow
 
-### Nieuwe Feature Starten
+### Starting a New Feature
 ```bash
-# Start een nieuwe feature
-make gitflow-status                    # Bekijk huidige status
+# Start a new feature
+make gitflow-status                    # Check current status
 ./scripts/gitflow.sh feature start dark-mode
 
-# Of handmatig:
+# Or manually:
 git checkout develop
 git checkout -b feature/dark-mode
 ```
 
-### Feature Ontwikkelen
+### Developing the Feature
 ```bash
-# Werk aan je feature op de feature/dark-mode branch
+# Work on your feature on the feature/dark-mode branch
 git add .
 git commit -m "Add dark mode toggle"
 
-# Push regelmatig naar remote
+# Push regularly to remote
 git push origin feature/dark-mode
 ```
 
-### Feature Afronden
+### Finishing the Feature
 ```bash
-# Merge feature terug naar develop
+# Merge feature back to develop
 ./scripts/gitflow.sh feature finish dark-mode
 
-# Of handmatig:
+# Or manually:
 git checkout develop
 git merge --no-ff feature/dark-mode
 git branch -d feature/dark-mode
 git push origin develop
 ```
 
-## 📦 Release Workflow
+## Release Workflow
 
-### Release Voorbereiden
+### Preparing a Release
 ```bash
-# Start release branch vanaf develop
+# Start release branch from develop
 ./scripts/gitflow.sh release start 1.1.0
 
-# Of handmatig:
+# Or manually:
 git checkout develop
 git checkout -b release/1.1.0
-# Update VERSION file naar 1.1.0
+# Update VERSION file to 1.1.0
 ```
 
-### Release Testen & Finaliseren
+### Testing & Finalizing the Release
 ```bash
-# Doe final testing op release/1.1.0 branch
+# Do final testing on release/1.1.0 branch
 make build
 make preview
 
-# Commit laatste bug fixes
+# Commit last bug fixes
 git add .
 git commit -m "Fix release blocking bug"
 ```
 
-### Release Publiceren
+### Publishing the Release
 ```bash
-# Finish release (merge naar main & develop, create tag)
+# Finish release (merge to main & develop, create tag)
 ./scripts/gitflow.sh release finish 1.1.0
 
-# Dit doet automatisch:
-# 1. Merge naar main
-# 2. Tag v1.1.0 aanmaken
-# 3. Merge terug naar develop
-# 4. Branches opruimen
-# 5. GitHub Actions maakt automatisch de release
+# This automatically:
+# 1. Merges to main
+# 2. Creates tag v1.1.0
+# 3. Merges back to develop
+# 4. Cleans up branches
+# 5. GitHub Actions automatically creates the release
 ```
 
-## 🔥 Hotfix Workflow
+## Hotfix Workflow
 
-### Urgent Probleem in Productie
+### Urgent Problem in Production
 ```bash
-# Start hotfix vanaf main
+# Start hotfix from main
 ./scripts/gitflow.sh hotfix start 1.0.1
 
-# Of handmatig:
+# Or manually:
 git checkout main
 git checkout -b hotfix/1.0.1
 ```
 
-### Hotfix Implementeren
+### Implementing the Hotfix
 ```bash
-# Fix het probleem
+# Fix the problem
 git add .
 git commit -m "Fix critical production bug"
 ```
 
-### Hotfix Deployen
+### Deploying the Hotfix
 ```bash
 # Finish hotfix
 ./scripts/gitflow.sh hotfix finish 1.0.1
 
-# Dit doet automatisch:
-# 1. Merge naar main
-# 2. Tag v1.0.1 aanmaken
-# 3. Merge naar develop
-# 4. Branches opruimen
+# This automatically:
+# 1. Merges to main
+# 2. Creates tag v1.0.1
+# 3. Merges to develop
+# 4. Cleans up branches
 ```
 
-## 🛠️ Makefile Commando's
+## Makefile Commands
 
 ```bash
-# Gitflow status bekijken
+# Check gitflow status
 make gitflow-status
 
-# Gitflow initialiseren
+# Initialize gitflow
 make gitflow-init
 
-# Opgeschoonde merged branches
+# Clean up merged branches
 make gitflow-cleanup
 
-# Releases (werken met Gitflow)
+# Releases (using Gitflow)
 make release-patch     # v1.0.0 → v1.0.1
 make release-beta      # v1.0.1-beta.1
 make release-rc        # v1.0.1-rc.1
 ```
 
-## 📋 Voorbeelden van Complete Workflows
+## Complete Workflow Examples
 
 ### Feature Development
 ```bash
@@ -189,81 +189,81 @@ git commit -m "Fix crash on startup"
 ./scripts/gitflow.sh hotfix finish 1.0.1
 ```
 
-## 🎯 Best Practices
+## Best Practices
 
 ### Branches
-- Gebruik beschrijvende namen: `feature/user-auth`, `hotfix/crash-fix`
-- Commit regelmatig met duidelijke berichten
-- Push feature branches naar remote voor backup
+- Use descriptive names: `feature/user-auth`, `hotfix/crash-fix`
+- Commit regularly with clear messages
+- Push feature branches to remote for backup
 
 ### Merges
-- Altijd `--no-ff` merges gebruiken voor traceability
-- Merge commits krijgen duidelijke berichten
-- Delete merged branches om clean history te houden
+- Always use `--no-ff` merges for traceability
+- Merge commits should have clear messages
+- Delete merged branches to keep history clean
 
 ### Releases
-- Test releases grondig voordat finish
-- Gebruik semantic versioning (major.minor.patch)
-- Beta releases voor early testing
-- RC (release candidate) voor final validation
+- Test releases thoroughly before finishing
+- Use semantic versioning (major.minor.patch)
+- Use beta releases for early testing
+- Use RC (release candidate) for final validation
 
 ### Hotfixes
-- Alleen voor kritieke productie problemen
-- Minimal changes - fix alleen het specifieke probleem
-- Test grondig voordat deployen
+- Only for critical production problems
+- Minimal changes - fix only the specific problem
+- Test thoroughly before deploying
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
-### Branch Conflicten
+### Branch Conflicts
 ```bash
-# Bij merge conflicten:
-git status                    # Bekijk conflicterende files
-# Edit files om conflicten op te lossen
+# When merge conflicts occur:
+git status                    # View conflicting files
+# Edit files to resolve conflicts
 git add <resolved-files>
-git commit                    # Gitflow script maakt automatisch merge commit
+git commit                    # Gitflow script creates merge commit automatically
 ```
 
-### Verkeerde Branch
+### Wrong Branch
 ```bash
-# Check huidige branch
+# Check current branch
 git branch
 
-# Switch naar juiste branch
+# Switch to correct branch
 git checkout develop
 ```
 
-### Remote Sync Problemen
+### Remote Sync Issues
 ```bash
-# Force push als nodig (voorzichtig!)
+# Force push if needed (be careful!)
 git push origin feature/my-feature --force-with-lease
 
-# Of rebase op remote
+# Or rebase on remote
 git fetch origin
 git rebase origin/develop
 ```
 
-## 📊 Gitflow Status
+## Gitflow Status
 
-Bekijk altijd de status voor je begint:
+Always check status before starting:
 
 ```bash
 ./scripts/gitflow.sh status
 ```
 
-Dit toont:
-- Huidige branch
-- Actieve feature/release/hotfix branches
-- Recente commits
+This shows:
+- Current branch
+- Active feature/release/hotfix branches
+- Recent commits
 
-## 🎉 Voordelen van Gitflow
+## Benefits of Gitflow
 
-- **Georganiseerde development** - Duidelijke rollen per branch
-- **Parallelle development** - Meerdere features tegelijk
+- **Organized development** - Clear roles per branch
+- **Parallel development** - Multiple features simultaneously
 - **Release stability** - Dedicated release preparation
-- **Hotfix capability** - Snelle productie fixes
-- **Clean history** - Traceerbare merges en tags
-- **Team collaboration** - Duidelijke workflow voor iedereen
+- **Hotfix capability** - Fast production fixes
+- **Clean history** - Traceable merges and tags
+- **Team collaboration** - Clear workflow for everyone
 
 ---
 
-**Gitflow maakt professionele software development mogelijk!** 🚀✨
+**Gitflow enables professional software development!**

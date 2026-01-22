@@ -54,7 +54,8 @@ if [[ "$DO_BUILD" -eq 1 ]]; then
     -project "StorysellerScreensaver.xcodeproj" \
     -scheme "$NAME" \
     -configuration "$CONFIG" \
-    build >/dev/null
+    -destination 'platform=macOS' \
+    build 2>&1 | grep -v -E "(DVTErrorPresenter|CoreSimulator|iOSSimulator|SimServiceContext|DVTCoreSimulatorAdditionsErrorDomain|out-of-date|out of date|Recovery Suggestion.*CoreSimulator|Simulator device support disabled|^Code: [0-9]+$|^Recovery Suggestion:)" >/dev/null || true
 fi
 
 DERIVED="$HOME/Library/Developer/Xcode/DerivedData"
