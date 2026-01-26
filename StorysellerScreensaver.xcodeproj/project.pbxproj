@@ -39,14 +39,14 @@
 /* Begin PBXFileReference section */
 		226C7217F5996217D2CF9204 /* StorySellerSaverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorySellerSaverView.swift; sourceTree = "<group>"; };
 		1754EC52D34A43CBAF89CB2C /* Preview.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = Preview.png; sourceTree = "<group>"; };
-		9D799DD3150A47628EAB72A8 /* ScreensaverConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration/ScreensaverConfiguration.swift; sourceTree = "<group>"; };
-		6FFB764C553C4B05B3774525 /* ScreensaverError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration/ScreensaverError.swift; sourceTree = "<group>"; };
-		73EC73D3D2504E1DA91F830F /* AnimationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/AnimationEngine.swift; sourceTree = "<group>"; };
-		E4AE73F394D143ADB3E169E1 /* Metrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/Metrics.swift; sourceTree = "<group>"; };
-		05B484245D8C4B03AFF23D63 /* MetricsCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/MetricsCalculator.swift; sourceTree = "<group>"; };
-		2704C692419541EA9F931D06 /* StyleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/StyleManager.swift; sourceTree = "<group>"; };
-		D8066772B8824E6DAC3BFAAD /* ScreensaverRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core/ScreensaverRenderer.swift; sourceTree = "<group>"; };
-		434E456D0DD5409397796E9E /* AccessibilityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Accessibility/AccessibilityManager.swift; sourceTree = "<group>"; };
+		9D799DD3150A47628EAB72A8 /* ScreensaverConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreensaverConfiguration.swift; sourceTree = "<group>"; };
+		6FFB764C553C4B05B3774525 /* ScreensaverError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreensaverError.swift; sourceTree = "<group>"; };
+		73EC73D3D2504E1DA91F830F /* AnimationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimationEngine.swift; sourceTree = "<group>"; };
+		E4AE73F394D143ADB3E169E1 /* Metrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Metrics.swift; sourceTree = "<group>"; };
+		05B484245D8C4B03AFF23D63 /* MetricsCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricsCalculator.swift; sourceTree = "<group>"; };
+		2704C692419541EA9F931D06 /* StyleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StyleManager.swift; sourceTree = "<group>"; };
+		D8066772B8824E6DAC3BFAAD /* ScreensaverRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreensaverRenderer.swift; sourceTree = "<group>"; };
+		434E456D0DD5409397796E9E /* AccessibilityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityManager.swift; sourceTree = "<group>"; };
 		257D6B062F17A19B003B5632 /* StorySellerSaverInfo.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = StorySellerSaverInfo.plist; sourceTree = "<group>"; };
 		257D6B072F17A2C0003B5632 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		64A172C70238E3A2FA010262 /* ScreenSaver.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ScreenSaver.framework; path = System/Library/Frameworks/ScreenSaver.framework; sourceTree = SDKROOT; };

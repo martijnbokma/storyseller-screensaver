@@ -149,15 +149,6 @@ final class StorySellerSaverView: ScreenSaverView {
             attributes: storyAttrs
         )
 
-        // Calculate carousel center Y for baseline alignment
-        let centeredWordFont = styleManager.preferredFont(
-            size: metrics.wordBaseSize + metrics.wordBoost,
-            weight: .bold
-        )
-        let fontCenterOffset = (centeredWordFont.ascender + abs(centeredWordFont.descender)) / 2
-        let centeredWordBaselineOffset = centeredWordFont.ascender - fontCenterOffset
-        let centerY = storyBaselineY - centeredWordBaselineOffset
-
         // Calculate carousel center Y and baseline offset for alignment
         let centeredWordFont = styleManager.preferredFont(
             size: metrics.wordBaseSize + metrics.wordBoost,
