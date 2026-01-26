@@ -6,147 +6,125 @@ import os.log
 /// "create the story", "develop the story", ... in a continuous loop.
 final class StorySellerSaverView: ScreenSaverView {
 
-    // MARK: - Constants (documented magic numbers)
-
-    /// Maximum visibility distance for words as a multiplier of line height.
-    /// Words beyond this distance are culled from rendering.
-    private static let wordVisibilityMultiplier: CGFloat = 2.8
-
-    /// Edge fade inner boundary as a multiplier of line height.
-    /// Words within this distance have full opacity.
-    private static let edgeFadeInnerMultiplier: CGFloat = 1.8
-
-    /// Logo size scaling factor relative to minimum screen dimension.
-    private static let logoSizeScale: CGFloat = 0.025
-
-    /// Logo vertical spacing below carousel as multiplier of line height.
-    private static let logoSpacingMultiplier: CGFloat = 1.5
-
-    /// Cache cleanup interval in seconds.
-    private static let cacheCleanupInterval: Int = 60
-
-    /// Target frame rate for smooth animation.
-    private static let targetFrameRate: Double = 60.0
-
-    /// Maximum delta time to prevent large jumps after frame drops.
-    private static let maxDeltaTime: CGFloat = 0.05
-
     // MARK: - Logging
 
     private static let logger = OSLog(subsystem: "com.creativebusiness.storysellersaver", category: "Screensaver")
 
-    // MARK: - Content
+    // MARK: - Components
 
-    private let words: [String] = ["create", "develop", "produce", "manage", "sell"]
-    private let centerText: String = "the story"
+    /// Animation engine for managing timing and state.
+    private var animationEngine: AnimationEngine?
 
-    // MARK: - Animation state
+    /// Metrics calculator for typography and layout.
+    private var metricsCalculator: MetricsCalculator?
 
+    /// Style manager for fonts and attributes.
+    private var styleManager: StyleManager?
+
+    /// Renderer for all drawing operations.
+    private var renderer: ScreensaverRenderer?
+
+    // MARK: - Animation State
+
+    /// Last frame time for delta calculation.
     private var lastTime: TimeInterval = 0
-    /// Scroll offset in points within one full cycle (0 ..< cycleHeight).
+
+    /// Current scroll offset from animation engine.
     private var scrollOffset: CGFloat = 0
-    /// Elapsed time accumulator for move + hold timing.
-    private var elapsedTime: CGFloat = 0
 
-    // MARK: - Accessibility
-
-    /// Whether to reduce motion for accessibility. Checked once at animation start.
-    private var reduceMotion: Bool = false
-
-    // MARK: - Cached attributes for performance
-
-    private var cachedMetrics: (bounds: NSRect, metrics: Metrics)?
-    private var cachedStoryAttrs: [NSAttributedString.Key: Any]?
-    private var cachedWordAttrsCache: [String: [NSAttributedString.Key: Any]] = [:]
-    private var cachedLogoAttrs: [NSAttributedString.Key: Any]?
-
-    // MARK: - Tuning
-
-    /// Seconds for the movement between words.
-    private let secondsPerWord: CGFloat = 1.2
-    /// Seconds each word stays centered before moving on.
-    private let holdSecondsPerWord: CGFloat = 0.6
-    /// Horizontal gap between the left word and the centered "the story".
-    private let wordGap: CGFloat = 16
-    
-    /// Vertical offset to move the carousel slightly higher.
-    private let carouselVerticalOffset: CGFloat = -25.0
+    // MARK: - Initialization
 
     override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
-        animationTimeInterval = 1.0 / Self.targetFrameRate
+        animationTimeInterval = 1.0 / ScreensaverConfiguration.targetFrameRate
         wantsLayer = true
+        initializeComponents()
     }
 
     required init?(coder: NSCoder) {
         super.init(coder: coder)
-        animationTimeInterval = 1.0 / Self.targetFrameRate
+        animationTimeInterval = 1.0 / ScreensaverConfiguration.targetFrameRate
         wantsLayer = true
+        initializeComponents()
     }
 
-    override func startAnimation() {
-        super.startAnimation()
-        lastTime = ProcessInfo.processInfo.systemUptime
-        elapsedTime = 0
+    // MARK: - Component Initialization
 
-        // Check accessibility setting at animation start
-        reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    /// Initialize all component instances.
+    private func initializeComponents() {
+        let reduceMotion = AccessibilityManager.shouldReduceMotion
+        let wordCount = ScreensaverConfiguration.words.count
+
+        // Initialize animation engine
+        animationEngine = AnimationEngine(wordCount: wordCount, reduceMotion: reduceMotion)
+
+        // Initialize metrics calculator with font provider
+        metricsCalculator = MetricsCalculator(fontProvider: NSFont.preferredFont)
+
+        // Initialize style manager with font provider
+        styleManager = StyleManager(fontProvider: NSFont.preferredFont)
+
+        // Initialize renderer
+        if let styleManager = styleManager {
+            renderer = ScreensaverRenderer(styleManager: styleManager, fontProvider: NSFont.preferredFont)
+        }
 
         if reduceMotion {
             os_log("Reduce motion enabled - using simplified animations", log: Self.logger, type: .info)
         }
     }
 
+    // MARK: - Animation Lifecycle
+
+    override func startAnimation() {
+        super.startAnimation()
+        lastTime = ProcessInfo.processInfo.systemUptime
+        animationEngine?.reset()
+    }
+
     override func animateOneFrame() {
         super.animateOneFrame()
 
         let now = ProcessInfo.processInfo.systemUptime
-        let dt = CGFloat(min(max(now - lastTime, 0.0), Self.maxDeltaTime))
+        let dt = CGFloat(min(max(now - lastTime, 0.0), ScreensaverConfiguration.maxDeltaTime))
         lastTime = now
 
         // Periodic cache cleanup to prevent memory bloat
-        if Int(now) % Self.cacheCleanupInterval == 0 {
-            cachedWordAttrsCache.removeAll(keepingCapacity: true)
-            cachedLogoAttrs = nil // Reset logo cache to pick up any bounds changes
+        if Int(now) % ScreensaverConfiguration.cacheCleanupInterval == 0 {
+            styleManager?.cleanupCache()
             os_log("Cache cleanup performed", log: Self.logger, type: .debug)
         }
 
-        // Compute metrics based on current bounds (handles preview/screen size changes).
-        let metrics = computeMetrics()
-        let cycleHeight = metrics.lineHeight * CGFloat(words.count)
+        // Compute metrics based on current bounds (handles preview/screen size changes)
+        guard let metricsCalculator = metricsCalculator else {
+            os_log("Metrics calculator not initialized", log: Self.logger, type: .error)
+            setNeedsDisplay(bounds)
+            return
+        }
+
+        let metrics = metricsCalculator.computeMetrics(for: bounds, isPreview: isPreview)
+        let cycleHeight = metrics.lineHeight * CGFloat(ScreensaverConfiguration.words.count)
+
         guard cycleHeight > 0 else {
             os_log("Invalid cycle height: %{public}f", log: Self.logger, type: .error, cycleHeight)
             setNeedsDisplay(bounds)
             return
         }
 
-        // If reduce motion is enabled, show static centered word
-        if reduceMotion {
-            scrollOffset = 0
-        } else {
-            // Move downward with a brief hold at center for each word.
-            let moveSeconds = max(0.05, secondsPerWord)
-            let holdSeconds = max(0.0, holdSecondsPerWord)
-            let wordDuration = moveSeconds + holdSeconds
-            let cycleDuration = wordDuration * CGFloat(words.count)
-
-            elapsedTime = (elapsedTime + dt).truncatingRemainder(dividingBy: cycleDuration)
-            let wordIndex = Int(floor(elapsedTime / wordDuration)) % words.count
-            let localTime = elapsedTime - CGFloat(wordIndex) * wordDuration
-            let t: CGFloat
-            if localTime <= holdSeconds {
-                t = 0
-            } else {
-                let rawT = min(1.0, (localTime - holdSeconds) / moveSeconds)
-                // Smooth easing for more natural movement
-                t = rawT < 0.5 ? 2 * rawT * rawT : 1 - pow(-2 * rawT + 2, 2) / 2
-            }
-
-            scrollOffset = (CGFloat(wordIndex) + t) * metrics.lineHeight
+        // Update animation state
+        guard let animationEngine = animationEngine else {
+            os_log("Animation engine not initialized", log: Self.logger, type: .error)
+            setNeedsDisplay(bounds)
+            return
         }
+
+        let state = animationEngine.update(deltaTime: dt, lineHeight: metrics.lineHeight)
+        scrollOffset = state.scrollOffset
 
         setNeedsDisplay(bounds)
     }
+
+    // MARK: - Drawing
 
     override func draw(_ rect: NSRect) {
         guard NSGraphicsContext.current != nil else {
@@ -154,379 +132,93 @@ final class StorySellerSaverView: ScreenSaverView {
             return
         }
 
-        let metrics: Metrics
-        do {
-            metrics = computeMetrics()
-            // Debug: check if we have valid metrics
-            guard metrics.lineHeight > 0 else {
-                throw NSError(domain: "Screensaver", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid metrics"])
-            }
-        } catch {
-            os_log("Metrics computation failed: %{public}@", log: Self.logger, type: .error, error.localizedDescription)
-            // Fallback rendering for Release mode crashes
-            NSColor.black.setFill()
-            bounds.fill()
-            // Draw a simple text message
-            let fallbackText = "StorySeller"
-            let font = NSFont.systemFont(ofSize: 24, weight: .regular)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: NSColor.white
-            ]
-            let textSize = (fallbackText as NSString).size(withAttributes: attrs)
-            let textRect = CGRect(
-                x: (bounds.width - textSize.width) / 2,
-                y: (bounds.height - textSize.height) / 2,
-                width: textSize.width,
-                height: textSize.height
-            )
-            (fallbackText as NSString).draw(in: textRect, withAttributes: attrs)
+        // Compute metrics with error handling
+        guard let metricsCalculator = metricsCalculator else {
+            drawFallback()
             return
         }
 
-        // Background: subtle gradient + vignette
-        let phase = (scrollOffset / max(metrics.lineHeight, 1)) * 0.2
-        let topShift = 0.02 + 0.01 * sin(phase)
-        let bottomShift = 0.01 + 0.01 * cos(phase * 0.9)
-        let bgTop = NSColor(calibratedRed: 0.05 + topShift, green: 0.06 + topShift, blue: 0.08 + topShift, alpha: 1)
-        let bgBottom = NSColor(calibratedRed: 0.01 + bottomShift, green: 0.02 + bottomShift, blue: 0.03 + bottomShift, alpha: 1)
-        let bgGradient = NSGradient(colors: [bgTop, bgBottom]) ?? NSGradient(starting: bgTop, ending: bgBottom)
-        bgGradient?.draw(in: bounds, angle: 90)
+        let metrics: Metrics
+        do {
+            metrics = metricsCalculator.computeMetrics(for: bounds, isPreview: isPreview)
+            guard metrics.lineHeight > 0 else {
+                throw ScreensaverError.invalidMetrics("Line height is zero or negative")
+            }
+        } catch {
+            os_log("Metrics computation failed: %{public}@", log: Self.logger, type: .error, error.localizedDescription)
+            drawFallback()
+            return
+        }
 
-        let vignette = NSGradient(colors: [
-            NSColor.black.withAlphaComponent(0.0),
-            NSColor.black.withAlphaComponent(0.45)
-        ])
-        vignette?.draw(in: bounds, relativeCenterPosition: .zero)
+        // Get renderer
+        guard let renderer = renderer else {
+            drawFallback()
+            return
+        }
 
+        // Calculate background phase
+        let phase = (scrollOffset / max(metrics.lineHeight, 1)) * ScreensaverConfiguration.bgPhaseMultiplier
+
+        // Draw background
+        renderer.drawBackground(in: bounds, phase: phase)
+
+        // Draw glow
         let centerX = bounds.midX
         let screenCenterY = bounds.midY
+        let glowRadius = max(bounds.width, bounds.height) * ScreensaverConfiguration.glowRadiusMultiplier
+        renderer.drawGlow(center: CGPoint(x: centerX, y: screenCenterY), radius: glowRadius)
 
-        // Attributes for the fixed center text (SF Pro Display look)
-        // Cache story attributes for better performance
-        let storyAttrs: [NSAttributedString.Key: Any]
-        if let cached = cachedStoryAttrs {
-            storyAttrs = cached
-        } else {
-            storyAttrs = [
-                .font: metrics.storyFont,
-                .foregroundColor: NSColor.white.withAlphaComponent(0.9),
-                .kern: -0.2
-            ]
-            cachedStoryAttrs = storyAttrs
-        }
-
-        let storySize = (centerText as NSString).size(withAttributes: storyAttrs)
-        
-        // Soft glow behind the phrase
-        // Calculate space width for proper spacing between words and "the story"
-        // Using combination of font-based calculation and fixed pixel value for better visibility
-        let fontBasedSpace = metrics.storyFont.pointSize * 1.3 // Space character width (slightly increased)
-        let fixedSpace: CGFloat = 25 // Fixed pixel offset for consistent spacing (slightly increased)
-        let spaceWidth = fontBasedSpace + fixedSpace // Combined approach for maximum visibility
-        
-        // Position "the story" first to determine its baseline
-        let storyVerticalOffset: CGFloat = 8.0 // Move "the story" down to align with carousel baseline
-        let storyOrigin = CGPoint(
-            x: centerX - storySize.width / 2 + spaceWidth,
-            y: screenCenterY - storySize.height / 2 + storyVerticalOffset
+        // Draw center text and get alignment info
+        let (storyOrigin, storyBaselineY, wordRightX) = renderer.drawCenterText(
+            ScreensaverConfiguration.centerText,
+            metrics: metrics,
+            in: bounds,
+            isFlipped: isFlipped
         )
-        let storyBaselineY = storyOrigin.y + metrics.storyFont.ascender
-        
-        // Calculate carousel centerY so the centered word's baseline aligns with "the story" baseline
-        // More precise baseline calculation using actual font metrics
-        
-        // Get the font for the centered word (maximum size: wordBaseSize + wordBoost)
-        let centeredWordFont = preferredFont(size: metrics.wordBaseSize + metrics.wordBoost, weight: .bold)
-        
-        // Font metrics explanation:
-        // - ascender: distance from baseline to top of font
-        // - descender: distance from baseline to bottom of font (usually negative)
-        // - When drawing text at origin (x, y), the baseline is at: y + font.ascender
-        // - The font's vertical center relative to baseline is: (ascender + abs(descender)) / 2
-        
-        // For the centered word (offset = 0):
-        // - We want: wordBaselineY = storyBaselineY
-        // - wordBaselineY = wordOrigin.y + centeredWordFont.ascender
-        // - wordOrigin.y = wordBaselineY - wordBaselineY - centeredWordFont.ascender
-        // - wordCenterY = wordOrigin.y + fontCenterOffset
-        //   where fontCenterOffset = (centeredWordFont.ascender + abs(centeredWordFont.descender)) / 2
-        // - So: wordCenterY = storyBaselineY - centeredWordFont.ascender + fontCenterOffset
-        // - Simplifying: wordCenterY = storyBaselineY - (centeredWordFont.ascender - fontCenterOffset)
-        // - Since fontCenterOffset = (ascender + abs(descender)) / 2
-        // - wordCenterY = storyBaselineY - (ascender - (ascender + abs(descender)) / 2)
-        // - wordCenterY = storyBaselineY - (ascender - abs(descender)) / 2
-        
-        let fontCenterOffset = (centeredWordFont.ascender + abs(centeredWordFont.descender)) / 2
-        let centeredWordBaselineOffset = centeredWordFont.ascender - fontCenterOffset
-        
-        // Calculate centerY so that the centered word's baseline aligns with storyBaselineY
-        // centerY + centeredWordBaselineOffset = storyBaselineY
-        let centerY = storyBaselineY - centeredWordBaselineOffset
-        let baselineOffset = centeredWordBaselineOffset
 
-        // Word carousel geometry
-        let lineHeight = metrics.lineHeight
-        guard lineHeight > 0 else { return }
+        // Draw carousel
+        renderer.drawCarousel(
+            words: ScreensaverConfiguration.words,
+            metrics: metrics,
+            scrollOffset: scrollOffset,
+            in: bounds,
+            isFlipped: isFlipped,
+            storyBaselineY: storyBaselineY,
+            wordRightX: wordRightX
+        )
 
-        // Progress within the word cycle.
-        let progress = scrollOffset / lineHeight
-        let baseIndex = Int(floor(progress)) % words.count
-        let t = progress - floor(progress)
+        // Draw logo
+        renderer.drawLogo(
+            text: ScreensaverConfiguration.logoText,
+            metrics: metrics,
+            in: bounds,
+            centerY: screenCenterY,
+            lineHeight: metrics.lineHeight
+        )
+    }
 
-        let glowCenter = CGPoint(x: centerX, y: screenCenterY)
-        let glow = NSGradient(colors: [
-            NSColor.white.withAlphaComponent(0.07),
-            NSColor.white.withAlphaComponent(0.0)
-        ])
-        glow?.draw(fromCenter: glowCenter, radius: 0, toCenter: glowCenter, radius: max(bounds.width, bounds.height) * 0.35, options: [])
+    // MARK: - Fallback Rendering
 
-        // Draw "the story" with phrase-centric positioning
-        (centerText as NSString).draw(at: storyOrigin, withAttributes: storyAttrs)
+    /// Draw fallback content when rendering fails.
+    private func drawFallback() {
+        NSColor.black.setFill()
+        bounds.fill()
 
-        // Words are right-aligned to sit nicely before "the story".
-        let wordRightX = storyOrigin.x - wordGap
-
-        // Positioning rule:
-        // - Only 5 words are visible (2 above, 1 center, 2 below).
-        // - As scrollOffset increases by lineHeight, the next word becomes centered.
-        let ySign: CGFloat = isFlipped ? 1 : -1
-        for offset in -3...3 {
-            // Offsets are visual positions; index mapping keeps list order while moving downward.
-            let wordIndex = (baseIndex - offset + words.count) % words.count
-            // Negative offsets sit above the center line; move linearly downward.
-            let wordCenterY = centerY + (CGFloat(offset) + t) * lineHeight * ySign
-
-            // Visual treatment: fade + slight size emphasis near center
-            let dist = abs(wordCenterY - centerY)
-            // Hard cull to avoid a third row peeking in below/above.
-            // Extended so incoming words become visible earlier for a smoother loop.
-            let maxVisible = lineHeight * Self.wordVisibilityMultiplier
-            if dist > maxVisible {
-                continue
-            }
-            // Optimized easing calculation - pre-calculate squared falloff for better performance
-            let norm = min(1.0, dist / (lineHeight * Self.wordVisibilityMultiplier))
-            let falloff = 1.0 - norm
-            let ease = falloff * falloff // Equivalent to pow(falloff, 2.0) but faster
-
-            // Fade-in/out at the edges so the first word appears smoothly.
-            let edgeInner = lineHeight * Self.edgeFadeInnerMultiplier
-            let edgeOuter = maxVisible
-            let edgeT = max(0.0, min(1.0, (edgeOuter - dist) / (edgeOuter - edgeInner)))
-            let edgeFade = edgeT * edgeT * (3.0 - 2.0 * edgeT)
-
-            // Keep center strong; outer rows are nearly ghosted.
-            let alpha = (0.02 + 0.98 * ease) * edgeFade
-            let fontSize = metrics.wordBaseSize + metrics.wordBoost * ease
-            let wordFont = preferredFont(size: fontSize, weight: .bold)
-
-            // Cache word attributes for better performance
-            // Use integer-based cache key to avoid floating-point precision issues
-            let fontSizeKey = Int(fontSize * 100)
-            let alphaKey = Int(alpha * 1000)
-            let cacheKey = "\(fontSizeKey)-\(alphaKey)"
-            let wordAttrs: [NSAttributedString.Key: Any]
-            if let cached = cachedWordAttrsCache[cacheKey] {
-                wordAttrs = cached
-            } else {
-                let shadow = NSShadow()
-                shadow.shadowOffset = .zero
-                shadow.shadowBlurRadius = 16 * ease
-                shadow.shadowColor = NSColor.white.withAlphaComponent(0.65 * ease)
-
-                wordAttrs = [
-                    .font: wordFont,
-                    .foregroundColor: NSColor.white.withAlphaComponent(alpha),
-                    .shadow: shadow,
-                    .kern: -0.15
-                ]
-                cachedWordAttrsCache[cacheKey] = wordAttrs
-            }
-
-            let w = words[wordIndex]
-            let wordSize = (w as NSString).size(withAttributes: wordAttrs)
-
-            // Align vertically with "the story" baseline using font metrics.
-            // Align the word baseline to the story baseline, preserving row position.
-            let wordBaselineY = wordCenterY + baselineOffset
-            let wordOrigin = CGPoint(
-                x: wordRightX - wordSize.width,
-                y: wordBaselineY - wordFont.ascender
-            )
-
-            (w as NSString).draw(at: wordOrigin, withAttributes: wordAttrs)
-        }
-
-        // Draw "CREATIVE BUSINESS" logo below the carousel
-        drawLogo(metrics: metrics, centerY: screenCenterY, lineHeight: lineHeight)
-
-        // Optional subtle center guide (disabled by default).
-        // ctx.setStrokeColor(NSColor.white.withAlphaComponent(0.05).cgColor)
-        // ctx.setLineWidth(1)
-        // ctx.stroke(CGRect(x: 0, y: centerY, width: bounds.width, height: 1))
+        let fallbackText = "StorySeller"
+        let font = NSFont.systemFont(ofSize: 24, weight: .regular)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white
+        ]
+        let textSize = (fallbackText as NSString).size(withAttributes: attrs)
+        let textRect = CGRect(
+            x: (bounds.width - textSize.width) / 2,
+            y: (bounds.height - textSize.height) / 2,
+            width: textSize.width,
+            height: textSize.height
+        )
+        (fallbackText as NSString).draw(in: textRect, withAttributes: attrs)
     }
 
     override var hasConfigureSheet: Bool { false }
-
-    // MARK: - Layout / typography
-
-    private struct Metrics {
-        var storyFont: NSFont
-        var lineHeight: CGFloat
-        var wordBaseSize: CGFloat
-        var wordBoost: CGFloat
-        var activeWordFont: NSFont
-    }
-
-    private func computeMetrics() -> Metrics {
-        // Cache metrics to avoid recalculation when bounds haven't changed
-        if let cached = cachedMetrics, cached.bounds == bounds {
-            return cached.metrics
-        }
-
-        // Scale typography to screen size but keep it tasteful in preview mode.
-        let minDim = max(100, min(bounds.width, bounds.height)) // Ensure minimum screen size
-
-        // Base size tuned for typical screens; clamped so it doesn't explode.
-        let base = max(34, min(72, minDim * 0.095))
-        let storySize = base
-        let wordBase = base * 0.92
-
-        // Slight emphasis at the center word.
-        let boost = max(6, storySize * 0.18)
-
-        let storyFont = preferredFont(size: storySize, weight: .regular)
-        let activeWordFont = preferredFont(size: wordBase + boost, weight: .semibold)
-
-        // Line height: enough separation to feel like a carousel, not a list.
-        let lineHeight = max(52, storySize * 1.16)
-
-        let metrics = Metrics(
-            storyFont: storyFont,
-            lineHeight: lineHeight,
-            wordBaseSize: wordBase,
-            wordBoost: boost,
-            activeWordFont: activeWordFont
-        )
-
-        // Cache the result
-        cachedMetrics = (bounds: bounds, metrics: metrics)
-
-        return metrics
-    }
-
-    private func drawLogo(metrics: Metrics, centerY: CGFloat, lineHeight: CGFloat) {
-        let logoText = "CREATIVE BUSINESS"
-        let fontSize: CGFloat = min(bounds.width, bounds.height) * Self.logoSizeScale
-        let logoFont = preferredFont(size: fontSize, weight: .bold)
-
-        // Cache logo attributes for performance
-        if cachedLogoAttrs == nil {
-            cachedLogoAttrs = [
-                .font: logoFont,
-                .foregroundColor: NSColor.white.withAlphaComponent(0.3),
-                .kern: 1.2
-            ]
-        }
-
-        guard let attrs = cachedLogoAttrs else { return }
-
-        let logoSize = (logoText as NSString).size(withAttributes: attrs)
-        let centerX = bounds.midX
-        
-        // Position logo below the carousel
-        // Calculate bottom of carousel (lowest visible word position)
-        let carouselBottom = centerY - (lineHeight * Self.wordVisibilityMultiplier)
-        let logoY = carouselBottom - logoSize.height - (lineHeight * Self.logoSpacingMultiplier)
-        
-        let logoOrigin = CGPoint(
-            x: centerX - logoSize.width / 2,
-            y: logoY
-        )
-
-        (logoText as NSString).draw(at: logoOrigin, withAttributes: attrs)
-    }
-
-    private func preferredFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
-        // Ensure size is valid
-        let safeSize = max(1, size)
-
-        // Try Cera Pro first (primary font)
-        // Map NSFont.Weight to Cera Pro variants
-        // Try multiple naming conventions as font names can vary
-        let ceraProNames: [String]
-        switch weight {
-        case .thin, .ultraLight:
-            ceraProNames = [
-                "Cera Pro Thin",
-                "CeraPro-Thin",
-                "Cera Pro Light",
-                "Cera Pro Regular"
-            ]
-        case .light:
-            ceraProNames = [
-                "Cera Pro Light",
-                "CeraPro-Light",
-                "Cera Pro Regular",
-                "Cera Pro Medium"
-            ]
-        case .regular, .medium:
-            ceraProNames = [
-                "Cera Pro Regular",
-                "CeraPro-Regular",
-                "Cera Pro",
-                "Cera Pro Medium"
-            ]
-        case .semibold, .bold:
-            ceraProNames = [
-                "Cera Pro Bold",
-                "CeraPro-Bold",
-                "Cera Pro Medium",
-                "Cera Pro"
-            ]
-        case .heavy, .black:
-            ceraProNames = [
-                "Cera Pro Black",
-                "CeraPro-Black",
-                "Cera Pro Bold",
-                "Cera Pro"
-            ]
-        default:
-            ceraProNames = [
-                "Cera Pro Regular",
-                "CeraPro-Regular",
-                "Cera Pro Medium",
-                "Cera Pro"
-            ]
-        }
-
-        for name in ceraProNames {
-            if let font = NSFont(name: name, size: safeSize), font.pointSize > 0 {
-                return font
-            }
-        }
-
-        // Fallback to Poppins if Cera Pro not available
-        let isBold = weight >= .semibold
-        let poppinsNames = isBold
-            ? ["Poppins-Bold", "Poppins-SemiBold", "Poppins"]
-            : ["Poppins-Regular", "Poppins"]
-
-        for name in poppinsNames {
-            if let font = NSFont(name: name, size: safeSize), font.pointSize > 0 {
-                return font
-            }
-        }
-
-        if let avenir = NSFont(name: "Avenir Next", size: safeSize), avenir.pointSize > 0 {
-            return avenir
-        }
-        if let helvetica = NSFont(name: "Helvetica Neue", size: safeSize), helvetica.pointSize > 0 {
-            return helvetica
-        }
-
-        // Ultimate fallback - system font
-        return NSFont.systemFont(ofSize: safeSize, weight: weight)
-    }
 }
