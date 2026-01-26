@@ -128,7 +128,19 @@ StorySellerSaver/
 ├── Info.plist                         # Project metadata
 ├── StorySellerSaver/                  # Main screensaver code
 │   ├── Info.plist                     # Bundle configuration
-│   └── StorySellerSaverView.swift     # Core screensaver logic
+│   ├── Preview.png                    # Preview thumbnail
+│   ├── StorySellerSaverView.swift     # Main screensaver view (orchestrator)
+│   ├── Core/                          # Core functionality modules
+│   │   ├── AnimationEngine.swift      # Animation timing and state management
+│   │   ├── Metrics.swift              # Typography and layout metrics
+│   │   ├── MetricsCalculator.swift    # Metrics calculation and caching
+│   │   └── StyleManager.swift         # Font, color, and style management
+│   ├── Configuration/                 # Configuration and error handling
+│   │   ├── ScreensaverConfiguration.swift  # Centralized configuration constants
+│   │   └── ScreensaverError.swift     # Error types
+│   ├── Accessibility/                 # Accessibility features
+│   │   └── AccessibilityManager.swift # Reduced motion and high contrast support
+│   └── Cera Pro *.otf                 # Custom font files
 ├── StorySellerSaverInfo.plist         # Additional bundle info
 ├── StorysellerScreensaver.xcodeproj/  # Xcode project files
 │   ├── project.pbxproj               # Project configuration
@@ -140,6 +152,15 @@ StorySellerSaver/
     ├── preview_screensaver.sh        # Development preview tool
     └── preview_then_confirm.sh       # Interactive testing
 ```
+
+### Architecture Overview
+
+The screensaver follows a modular architecture with clear separation of concerns:
+
+- **StorySellerSaverView**: Main view class that orchestrates all components
+- **Core/**: Core functionality modules for animation, metrics, and styling
+- **Configuration/**: Centralized configuration and error handling
+- **Accessibility/**: Accessibility features and preferences
 
 ## 🛠️ Development Scripts
 
@@ -184,6 +205,7 @@ Verifies screensaver installation and provides troubleshooting info.
 - **Timing**: Configurable movement (1.2s) and hold (0.6s) periods per word
 - **Easing**: Smooth transitions with configurable easing curves
 - **Accessibility**: Respects `accessibilityDisplayShouldReduceMotion`
+- **Architecture**: Animation logic handled by `AnimationEngine` class for better testability
 
 ### Typography
 - **Font Stack**: Cera Pro → Poppins → Avenir Next → Helvetica Neue → System Font
@@ -204,6 +226,9 @@ Verifies screensaver installation and provides troubleshooting info.
 - **Efficient Rendering**: Only redraws changed regions
 - **Memory Management**: Proper cleanup and resource management
 - **Layer Backing**: Uses Core Animation layers for smooth compositing
+- **Metrics Caching**: Typography metrics cached until bounds change
+- **Attribute Caching**: Text attributes cached with granular keys (font size + alpha)
+- **Periodic Cleanup**: Automatic cache cleanup every 60 seconds to prevent memory bloat
 
 ## 🤝 Contributing
 
@@ -235,6 +260,8 @@ git commit -m "Add your feature"
 - Follow Swift coding conventions
 - Add comments for complex animation logic
 - Use Gitflow workflow for all changes
+- Maintain modular architecture: keep components focused and testable
+- Update configuration in `ScreensaverConfiguration` rather than hardcoding values
 
 ## 🎨 Customization & Future Features
 
