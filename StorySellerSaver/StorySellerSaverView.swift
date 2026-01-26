@@ -60,6 +60,40 @@ final class StorySellerSaverView: ScreenSaverView {
     private var cachedWordAttrsCache: [String: [NSAttributedString.Key: Any]] = [:]
     private var cachedLogoAttrs: [NSAttributedString.Key: Any]?
 
+    // MARK: - Cached gradients and static objects
+
+    /// Cached background gradient (recreated when phase changes significantly)
+    private var cachedBgGradient: (phase: CGFloat, gradient: NSGradient)?
+
+    /// Static vignette gradient (never changes) - lazy initialization
+    private static var _vignetteGradient: NSGradient?
+    private static var vignetteGradient: NSGradient {
+        if let cached = _vignetteGradient {
+            return cached
+        }
+        let gradient = NSGradient(colors: [
+            NSColor.black.withAlphaComponent(0.0),
+            NSColor.black.withAlphaComponent(0.45)
+        ]) ?? NSGradient(starting: NSColor.black.withAlphaComponent(0.0), ending: NSColor.black.withAlphaComponent(0.45))!
+        _vignetteGradient = gradient
+        return gradient
+    }
+
+    /// Static glow gradient (never changes)
+    private var cachedGlowGradient: NSGradient?
+
+    /// Cached font lookup table for faster font resolution
+    private var cachedFonts: [String: NSFont] = [:]
+
+    /// Cached string sizes to avoid repeated calculations
+    private var cachedStringSizes: [String: CGSize] = [:]
+
+    /// Last cache cleanup time to avoid excessive cleanup
+    private var lastCacheCleanupTime: TimeInterval = 0
+
+    /// Maximum cache size before cleanup
+    private static let maxWordAttrsCacheSize: Int = 50
+
     // MARK: - Tuning
 
     /// Seconds for the movement between words.
@@ -68,7 +102,7 @@ final class StorySellerSaverView: ScreenSaverView {
     private let holdSecondsPerWord: CGFloat = 0.6
     /// Horizontal gap between the left word and the centered "the story".
     private let wordGap: CGFloat = 16
-    
+
     /// Vertical offset to move the carousel slightly higher.
     private let carouselVerticalOffset: CGFloat = -25.0
 
@@ -88,6 +122,7 @@ final class StorySellerSaverView: ScreenSaverView {
         super.startAnimation()
         lastTime = ProcessInfo.processInfo.systemUptime
         elapsedTime = 0
+        lastCacheCleanupTime = lastTime
 
         // Check accessibility setting at animation start
         reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -104,11 +139,16 @@ final class StorySellerSaverView: ScreenSaverView {
         let dt = CGFloat(min(max(now - lastTime, 0.0), Self.maxDeltaTime))
         lastTime = now
 
-        // Periodic cache cleanup to prevent memory bloat
-        if Int(now) % Self.cacheCleanupInterval == 0 {
+        // Smart cache cleanup: only when cache grows too large or periodically
+        let timeSinceLastCleanup = now - lastCacheCleanupTime
+        if cachedWordAttrsCache.count > Self.maxWordAttrsCacheSize || timeSinceLastCleanup >= Double(Self.cacheCleanupInterval) {
             cachedWordAttrsCache.removeAll(keepingCapacity: true)
+            cachedStringSizes.removeAll(keepingCapacity: true)
+            cachedFonts.removeAll(keepingCapacity: true)
             cachedLogoAttrs = nil // Reset logo cache to pick up any bounds changes
-            os_log("Cache cleanup performed", log: Self.logger, type: .debug)
+            cachedBgGradient = nil // Reset background gradient cache
+            lastCacheCleanupTime = now
+            os_log("Cache cleanup performed (wordAttrs: %d, fonts: %d, strings: %d)", log: Self.logger, type: .debug, cachedWordAttrsCache.count, cachedFonts.count, cachedStringSizes.count)
         }
 
         // Compute metrics based on current bounds (handles preview/screen size changes).
@@ -185,19 +225,25 @@ final class StorySellerSaverView: ScreenSaverView {
         }
 
         // Background: subtle gradient + vignette
+        // Cache gradient calculation - only recalculate when phase changes significantly
         let phase = (scrollOffset / max(metrics.lineHeight, 1)) * 0.2
-        let topShift = 0.02 + 0.01 * sin(phase)
-        let bottomShift = 0.01 + 0.01 * cos(phase * 0.9)
-        let bgTop = NSColor(calibratedRed: 0.05 + topShift, green: 0.06 + topShift, blue: 0.08 + topShift, alpha: 1)
-        let bgBottom = NSColor(calibratedRed: 0.01 + bottomShift, green: 0.02 + bottomShift, blue: 0.03 + bottomShift, alpha: 1)
-        let bgGradient = NSGradient(colors: [bgTop, bgBottom]) ?? NSGradient(starting: bgTop, ending: bgBottom)
-        bgGradient?.draw(in: bounds, angle: 90)
+        let phaseKey = floor(phase * 10) / 10 // Round to 0.1 precision for caching
 
-        let vignette = NSGradient(colors: [
-            NSColor.black.withAlphaComponent(0.0),
-            NSColor.black.withAlphaComponent(0.45)
-        ])
-        vignette?.draw(in: bounds, relativeCenterPosition: .zero)
+        let bgGradient: NSGradient
+        if let cached = cachedBgGradient, abs(cached.phase - phaseKey) < 0.05 {
+            bgGradient = cached.gradient
+        } else {
+            let topShift = 0.02 + 0.01 * sin(phase)
+            let bottomShift = 0.01 + 0.01 * cos(phase * 0.9)
+            let bgTop = NSColor(calibratedRed: 0.05 + topShift, green: 0.06 + topShift, blue: 0.08 + topShift, alpha: 1)
+            let bgBottom = NSColor(calibratedRed: 0.01 + bottomShift, green: 0.02 + bottomShift, blue: 0.03 + bottomShift, alpha: 1)
+            bgGradient = NSGradient(colors: [bgTop, bgBottom]) ?? NSGradient(starting: bgTop, ending: bgBottom)!
+            cachedBgGradient = (phase: phaseKey, gradient: bgGradient)
+        }
+        bgGradient.draw(in: bounds, angle: 90)
+
+        // Vignette is static - use cached static gradient
+        Self.vignetteGradient.draw(in: bounds, relativeCenterPosition: .zero)
 
         let centerX = bounds.midX
         let screenCenterY = bounds.midY
@@ -216,15 +262,22 @@ final class StorySellerSaverView: ScreenSaverView {
             cachedStoryAttrs = storyAttrs
         }
 
-        let storySize = (centerText as NSString).size(withAttributes: storyAttrs)
-        
+        // Cache string size calculation
+        let storySize: CGSize
+        if let cached = cachedStringSizes[centerText] {
+            storySize = cached
+        } else {
+            storySize = (centerText as NSString).size(withAttributes: storyAttrs)
+            cachedStringSizes[centerText] = storySize
+        }
+
         // Soft glow behind the phrase
         // Calculate space width for proper spacing between words and "the story"
         // Using combination of font-based calculation and fixed pixel value for better visibility
         let fontBasedSpace = metrics.storyFont.pointSize * 1.3 // Space character width (slightly increased)
         let fixedSpace: CGFloat = 25 // Fixed pixel offset for consistent spacing (slightly increased)
         let spaceWidth = fontBasedSpace + fixedSpace // Combined approach for maximum visibility
-        
+
         // Position "the story" first to determine its baseline
         let storyVerticalOffset: CGFloat = 8.0 // Move "the story" down to align with carousel baseline
         let storyOrigin = CGPoint(
@@ -232,19 +285,19 @@ final class StorySellerSaverView: ScreenSaverView {
             y: screenCenterY - storySize.height / 2 + storyVerticalOffset
         )
         let storyBaselineY = storyOrigin.y + metrics.storyFont.ascender
-        
+
         // Calculate carousel centerY so the centered word's baseline aligns with "the story" baseline
         // More precise baseline calculation using actual font metrics
-        
+
         // Get the font for the centered word (maximum size: wordBaseSize + wordBoost)
         let centeredWordFont = preferredFont(size: metrics.wordBaseSize + metrics.wordBoost, weight: .bold)
-        
+
         // Font metrics explanation:
         // - ascender: distance from baseline to top of font
         // - descender: distance from baseline to bottom of font (usually negative)
         // - When drawing text at origin (x, y), the baseline is at: y + font.ascender
         // - The font's vertical center relative to baseline is: (ascender + abs(descender)) / 2
-        
+
         // For the centered word (offset = 0):
         // - We want: wordBaselineY = storyBaselineY
         // - wordBaselineY = wordOrigin.y + centeredWordFont.ascender
@@ -256,10 +309,10 @@ final class StorySellerSaverView: ScreenSaverView {
         // - Since fontCenterOffset = (ascender + abs(descender)) / 2
         // - wordCenterY = storyBaselineY - (ascender - (ascender + abs(descender)) / 2)
         // - wordCenterY = storyBaselineY - (ascender - abs(descender)) / 2
-        
+
         let fontCenterOffset = (centeredWordFont.ascender + abs(centeredWordFont.descender)) / 2
         let centeredWordBaselineOffset = centeredWordFont.ascender - fontCenterOffset
-        
+
         // Calculate centerY so that the centered word's baseline aligns with storyBaselineY
         // centerY + centeredWordBaselineOffset = storyBaselineY
         let centerY = storyBaselineY - centeredWordBaselineOffset
@@ -274,12 +327,15 @@ final class StorySellerSaverView: ScreenSaverView {
         let baseIndex = Int(floor(progress)) % words.count
         let t = progress - floor(progress)
 
+        // Cache glow gradient (static, never changes)
+        if cachedGlowGradient == nil {
+            cachedGlowGradient = NSGradient(colors: [
+                NSColor.white.withAlphaComponent(0.07),
+                NSColor.white.withAlphaComponent(0.0)
+            ])
+        }
         let glowCenter = CGPoint(x: centerX, y: screenCenterY)
-        let glow = NSGradient(colors: [
-            NSColor.white.withAlphaComponent(0.07),
-            NSColor.white.withAlphaComponent(0.0)
-        ])
-        glow?.draw(fromCenter: glowCenter, radius: 0, toCenter: glowCenter, radius: max(bounds.width, bounds.height) * 0.35, options: [])
+        cachedGlowGradient?.draw(fromCenter: glowCenter, radius: 0, toCenter: glowCenter, radius: max(bounds.width, bounds.height) * 0.35, options: [])
 
         // Draw "the story" with phrase-centric positioning
         (centerText as NSString).draw(at: storyOrigin, withAttributes: storyAttrs)
@@ -345,7 +401,15 @@ final class StorySellerSaverView: ScreenSaverView {
             }
 
             let w = words[wordIndex]
-            let wordSize = (w as NSString).size(withAttributes: wordAttrs)
+            // Cache string size calculation per word
+            let wordSize: CGSize
+            let wordSizeKey = "\(w)-\(fontSizeKey)"
+            if let cached = cachedStringSizes[wordSizeKey] {
+                wordSize = cached
+            } else {
+                wordSize = (w as NSString).size(withAttributes: wordAttrs)
+                cachedStringSizes[wordSizeKey] = wordSize
+            }
 
             // Align vertically with "the story" baseline using font metrics.
             // Align the word baseline to the story baseline, preserving row position.
@@ -432,14 +496,21 @@ final class StorySellerSaverView: ScreenSaverView {
 
         guard let attrs = cachedLogoAttrs else { return }
 
-        let logoSize = (logoText as NSString).size(withAttributes: attrs)
+        // Cache logo string size
+        let logoSize: CGSize
+        if let cached = cachedStringSizes[logoText] {
+            logoSize = cached
+        } else {
+            logoSize = (logoText as NSString).size(withAttributes: attrs)
+            cachedStringSizes[logoText] = logoSize
+        }
         let centerX = bounds.midX
-        
+
         // Position logo below the carousel
         // Calculate bottom of carousel (lowest visible word position)
         let carouselBottom = centerY - (lineHeight * Self.wordVisibilityMultiplier)
         let logoY = carouselBottom - logoSize.height - (lineHeight * Self.logoSpacingMultiplier)
-        
+
         let logoOrigin = CGPoint(
             x: centerX - logoSize.width / 2,
             y: logoY
@@ -451,6 +522,12 @@ final class StorySellerSaverView: ScreenSaverView {
     private func preferredFont(size: CGFloat, weight: NSFont.Weight) -> NSFont {
         // Ensure size is valid
         let safeSize = max(1, size)
+
+        // Cache font lookups for better performance
+        let cacheKey = "\(Int(safeSize * 10))-\(weight.rawValue)"
+        if let cached = cachedFonts[cacheKey] {
+            return cached
+        }
 
         // Try Cera Pro first (primary font)
         // Map NSFont.Weight to Cera Pro variants
@@ -503,6 +580,7 @@ final class StorySellerSaverView: ScreenSaverView {
 
         for name in ceraProNames {
             if let font = NSFont(name: name, size: safeSize), font.pointSize > 0 {
+                cachedFonts[cacheKey] = font
                 return font
             }
         }
@@ -515,18 +593,23 @@ final class StorySellerSaverView: ScreenSaverView {
 
         for name in poppinsNames {
             if let font = NSFont(name: name, size: safeSize), font.pointSize > 0 {
+                cachedFonts[cacheKey] = font
                 return font
             }
         }
 
         if let avenir = NSFont(name: "Avenir Next", size: safeSize), avenir.pointSize > 0 {
+            cachedFonts[cacheKey] = avenir
             return avenir
         }
         if let helvetica = NSFont(name: "Helvetica Neue", size: safeSize), helvetica.pointSize > 0 {
+            cachedFonts[cacheKey] = helvetica
             return helvetica
         }
 
         // Ultimate fallback - system font
-        return NSFont.systemFont(ofSize: safeSize, weight: weight)
+        let systemFont = NSFont.systemFont(ofSize: safeSize, weight: weight)
+        cachedFonts[cacheKey] = systemFont
+        return systemFont
     }
 }
